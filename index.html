@@ -201,7 +201,7 @@
             const h = Math.floor(diff / 3600000).toString().padStart(2, '0');
             const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
             const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
-            document.getElementById('timerDisplay').innerText = `${h}:${m}:${s}`; [cite: 266]
+            document.getElementById('timerDisplay').innerText = `${h}:${m}:${s}`;
         }
 
         function updateUI(isActive) {
@@ -216,7 +216,7 @@
                 startBtn.disabled = false; endBtn.disabled = true;
                 status.innerHTML = '<span class="w-2 h-2 rounded-full bg-slate-400"></span> Offline';
                 status.className = "inline-flex items-center gap-2 px-4 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-600";
-            } [cite: 272]
+            }
         }
 
         function switchTab(tab) {
@@ -227,7 +227,7 @@
             document.getElementById(tab + 'Section').classList.remove('hidden');
             document.getElementById('tab-' + tab).className = "flex-1 py-2 text-sm font-medium rounded-lg bg-slate-800 text-white transition-all";
             if(tab === 'manual' && !editingRow) resetManualForm();
-            if(tab === 'reports') loadReport(); [cite: 274]
+            if(tab === 'reports') loadReport(); 
         }
 
         function resetManualForm() {
@@ -237,18 +237,18 @@
             document.getElementById('manualEnd').value = "";
             document.getElementById('manualDate').valueAsDate = new Date();
             document.getElementById('submitManualBtn').innerHTML = 'Save Entry';
-            lucide.createIcons(); [cite: 276]
+            lucide.createIcons(); 
         }
 
         function openEdit(entry) {
-            editingRow = { monthKey: entry.monthKey, rowIndex: entry.rowIndex }; [cite: 277]
+            editingRow = { monthKey: entry.monthKey, rowIndex: entry.rowIndex }; 
             switchTab('manual');
             document.getElementById('manualTitle').innerText = "Edit Entry";
             document.getElementById('manualDate').value = entry.date;
             document.getElementById('manualStart').value = entry.start;
             document.getElementById('manualEnd').value = entry.end;
             document.getElementById('submitManualBtn').innerHTML = 'Update Entry';
-            lucide.createIcons(); [cite: 278]
+            lucide.createIcons(); 
         }
 
         async function submitManualEntry() {
@@ -265,9 +265,9 @@
             try {
                 let res;
                 if (editingRow) {
-                    res = await apiRequestJSONP('editEntry', { ...data, ...editingRow }); [cite: 281]
+                    res = await apiRequestJSONP('editEntry', { ...data, ...editingRow }); 
                 } else {
-                    res = await apiRequestJSONP('manualEntry', data); [cite: 283]
+                    res = await apiRequestJSONP('manualEntry', data);
                 }
 
                 if(res && res.success) {
@@ -277,13 +277,13 @@
                     switchTab('reports');
                 } else showToast(res?.message || "Error saving", "error");
             } catch (e) { showToast("Connection failed", "error"); }
-            finally { btn.disabled = false; } [cite: 287]
+            finally { btn.disabled = false; } 
         }
 
         async function handleDelete(monthKey, rowIndex) {
             if (!confirm("Are you sure?")) return;
             try {
-                const res = await apiRequestJSONP('deleteEntry', { monthKey, rowIndex }); [cite: 289]
+                const res = await apiRequestJSONP('deleteEntry', { monthKey, rowIndex });
                 if (res && res.success) { showToast("Entry Deleted"); loadReport(); }
                 else showToast(res?.message || "Delete failed", "error");
             } catch (e) { showToast("Connection failed", "error"); }
@@ -297,7 +297,7 @@
                     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
                     const val = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}`;
                     picker.innerHTML += `<option value="${val}">${val}</option>`;
-                } [cite: 293]
+                } 
             }
 
             const list = document.getElementById('reportEntriesList');
@@ -309,7 +309,7 @@
                 
                 if (!data.entries || data.entries.length === 0) {
                     list.innerHTML = '<p class="text-center text-slate-400 py-10 italic">No records found.</p>';
-                    return; [cite: 296]
+                    return; 
                 }
 
                 list.innerHTML = data.entries.map(entry => {
@@ -331,10 +331,10 @@
                                 <i data-lucide="trash-2" class="w-4 h-4"></i>
                             </button>
                         </div>
-                    </div>`; [cite: 299]
+                    </div>`;
                 }).join('');
             } catch (e) { list.innerHTML = '<p class="text-center text-rose-500 py-10">Error loading report.</p>'; }
-            lucide.createIcons(); [cite: 300]
+            lucide.createIcons();
         }
 
         function logout() { location.reload(); }
