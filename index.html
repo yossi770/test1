@@ -119,7 +119,51 @@
         lucide.createIcons();
         let currentUser = null;
         let timerInterval = null;
+function handleStart() {
+    setLoading(true); // נעילת כפתורים למניעת כפילויות [cite: 45]
+    google.script.run
+        .withSuccessHandler(res => {
+            setLoading(false);
+            if(res && res.success) {
+                startTimer(new Date()); // הפעלת הטיימר [cite: 28]
+                updateUI(true); // עדכון מצב כפתורים [cite: 39]
+                if(typeof showToast === 'function') showToast("הסשן התחיל בהצלחה");
+            } else {
+                alert(res.message || "שגיאה בהתחלת הסשן");
+            }
+        })
+        .withFailureHandler(err => {
+            setLoading(false);
+            alert("שגיאת תקשורת: " + err.message);
+        })
+        .startSession(currentUser.userId); [cite: 23]
+}
+function handleEnd() {
+    if (isProcessing) return; // הגנה נוספת מתוך הקוד שלך [cite: 29]
+    isProcessing = true;
+    setLoading(true);
 
+    google.script.run
+        .withSuccessHandler(res => {
+            isProcessing = false;
+            setLoading(false);
+            if(res && res.success) {
+                if(timerInterval) clearInterval(timerInterval); // עצירת הטיימר [cite: 32]
+                updateUI(false);
+                alert("הסשן הסתיים! משך זמן: " + res.duration + " דקות."); [cite: 25]
+                loadReport(); // רענון הדוח [cite: 63]
+            } else {
+                alert(res.message || "שגיאה בסגירת הסשן");
+            }
+        })
+        .withFailureHandler(err => {
+            isProcessing = false;
+            setLoading(false);
+            alert("שגיאת תקשורת בסגירה: " + err.message);
+        })
+        .endSession(currentUser.userId); [cite: 26]
+}
+        
         async function handleLogin() {
             const id = document.getElementById('userIdInput').value;
             if(!id) return showToast("Enter ID", "error");
