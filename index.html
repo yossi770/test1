@@ -94,8 +94,22 @@
   <script>
     // --- הגדרות תקשורת ---
     const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxpIm8v5F-r_uZSTl9Q_QzLyeDzrCEvnKNGDESem1IkBzAaGWV9Z4EPz2dJY16L8gGQ/exec";
+
+    async function callServer(action, payload = {}) {
+      const response = await fetch(GOOGLE_SCRIPT_URL, {
+        method: "POST",
+        mode: "no-cors", // חשוב למניעת שגיאות CORS בגוגל
+        body: JSON.stringify({ action, payload })
+      });
+      // מכיוון ש-no-cors לא מחזיר גוף תשובה, במקרים של קריאת נתונים (כמו Login)
+      // נצטרך להשתמש בשיטה מעט שונה או לוודא שה-CORS מוגדר בשרת.
+      // לבינתיים, לצורך ה-STOP המהיר, זה יעבוד מצוין.
+    }
+    
+    // הערה: לביצוע Login ודוחות (קבלת נתונים), מומלץ להשתמש ב-JSONP או להגדיר CORS ב-GAS.
+    // לגרסת ה-GitHub, נשתמש ב-fetch רגיל:
 async function apiRequest(action, payload = {}) {
-    const url = GOOGLE_SCRIPT_URL;
+    const url = "https://script.google.com/macros/s/AKfycbxpIm8v5F-r_uZSTl9Q_QzLyeDzrCEvnKNGDESem1IkBzAaGWV9Z4EPz2dJY16L8gGQ/exec";
     
     try {
         const response = await fetch(url, {
@@ -116,20 +130,6 @@ async function apiRequest(action, payload = {}) {
         throw error;
     }
 }
-    async function callServer(action, payload = {}) {
-      const response = await fetch(GOOGLE_SCRIPT_URL, {
-        method: "POST",
-        mode: "no-cors", // חשוב למניעת שגיאות CORS בגוגל
-        body: JSON.stringify({ action, payload })
-      });
-      // מכיוון ש-no-cors לא מחזיר גוף תשובה, במקרים של קריאת נתונים (כמו Login)
-      // נצטרך להשתמש בשיטה מעט שונה או לוודא שה-CORS מוגדר בשרת.
-      // לבינתיים, לצורך ה-STOP המהיר, זה יעבוד מצוין.
-    }
-    
-    // הערה: לביצוע Login ודוחות (קבלת נתונים), מומלץ להשתמש ב-JSONP או להגדיר CORS ב-GAS.
-    // לגרסת ה-GitHub, נשתמש ב-fetch רגיל:
-
 
     // --- לוגיקה של האפליקציה ---
     lucide.createIcons();
