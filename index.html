@@ -1,258 +1,183 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kollel Tracker Pro</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <style>
-    .glass-card {
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(229, 231, 235, 0.5);
-    }
-    body { background-color: #f3f4f6; font-family: system-ui, -apple-system, sans-serif; }
-    .hidden { display: none !important; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kollel Tracker - Fast Load</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(229, 231, 235, 0.5); }
+        body { background-color: #f3f4f6; font-family: system-ui, -apple-system, sans-serif; }
+        .hidden { display: none !important; }
+    </style>
 </head>
 <body class="min-h-screen flex flex-col items-center p-4">
 
-  <div id="loginSection" class="w-full max-w-md mt-10 p-8 glass-card rounded-2xl shadow-xl">
-    <div class="text-center mb-8">
-      <h1 class="text-3xl font-bold text-slate-800">Kollel Tracker</h1>
-      <p class="text-slate-500 mt-2">הזן מספר מזהה לכניסה</p>
-    </div>
-    <div class="space-y-4">
-      <input type="number" id="userIdInput" placeholder="User ID (e.g. 101)"
-             class="w-full p-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-lg text-center">
-      <button onclick="handleLogin()" id="loginBtn"
-              class="w-full bg-slate-800 text-white p-4 rounded-xl font-bold text-lg hover:bg-slate-700 transition-all flex justify-center items-center gap-2">
-        <i data-lucide="log-in"></i> כניסה
-      </button>
-    </div>
-  </div>
-
-  <div id="dashboardSection" class="w-full max-w-md space-y-6 hidden">
-    <div class="flex justify-between items-center p-2">
-      <div>
-        <h2 class="text-xl font-bold text-slate-800">שלום, <span id="userNameDisplay">---</span></h2>
-        <p id="currentDate" class="text-sm text-slate-500"></p>
-      </div>
-      <button onclick="logout()" class="text-slate-400 hover:text-red-500 transition-colors">
-        <i data-lucide="log-out"></i>
-      </button>
-    </div>
-
-    <div class="flex bg-white p-1 rounded-xl shadow-sm border border-slate-200">
-      <button onclick="switchTab('attendance')" id="tab-attendance" class="flex-1 py-2 text-sm font-medium rounded-lg bg-slate-800 text-white transition-all">נוכחות</button>
-      <button onclick="switchTab('manual')" id="tab-manual" class="flex-1 py-2 text-sm font-medium text-slate-500 hover:text-slate-800 transition-all">ידני</button>
-      <button onclick="switchTab('reports')" id="tab-reports" class="flex-1 py-2 text-sm font-medium text-slate-500 hover:text-slate-800 transition-all">דוחות</button>
-    </div>
-
-    <div id="attendanceSection" class="space-y-6">
-      <div class="glass-card p-8 rounded-3xl shadow-lg text-center space-y-6">
-        <div id="statusIndicator" class="inline-flex items-center gap-2 px-4 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-600">
-          <span class="w-2 h-2 rounded-full bg-slate-400"></span> Offline
+    <div id="loginSection" class="w-full max-w-md mt-10 p-8 glass-card rounded-2xl shadow-xl">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-slate-800">Kollel Tracker</h1>
+            <p class="text-slate-500 mt-2">כניסה מהירה דרך GitHub</p>
         </div>
-        <div class="text-5xl font-mono font-bold text-slate-800 py-4" id="timerDisplay">00:00:00</div>
-        <div class="flex gap-4">
-          <button id="startBtn" onclick="handleStart(event)" type="button" class="flex-1 bg-emerald-600 text-white p-5 rounded-2xl font-bold shadow-lg hover:bg-emerald-700 active:scale-95 transition-all">START</button>
-          <button id="endBtn" onclick="handleEnd(event)" type="button" disabled class="flex-1 bg-rose-600 text-white p-5 rounded-2xl font-bold shadow-lg hover:bg-rose-700 active:scale-95 transition-all disabled:opacity-30">STOP</button>
-        </div>
-      </div>
-    </div>
-
-    <div id="manualEntrySection" class="hidden space-y-4">
-      <div class="glass-card p-6 rounded-2xl shadow-md space-y-4">
-        <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
-          <i data-lucide="plus-circle" class="w-5 h-5"></i> הוספת דיווח ידני
-        </h3>
         <div class="space-y-4">
-          <input type="date" id="manualDate" class="w-full p-3 border border-slate-200 rounded-xl">
-          <div class="grid grid-cols-2 gap-4">
-            <input type="time" id="manualStart" class="w-full p-3 border border-slate-200 rounded-xl">
-            <input type="time" id="manualEnd" class="w-full p-3 border border-slate-200 rounded-xl">
-          </div>
-          <button onclick="submitManualEntry()" id="submitManualBtn" class="w-full bg-slate-800 text-white p-4 rounded-xl font-bold">שמור דיווח</button>
+            <input type="number" id="userIdInput" placeholder="מספר מזהה (למשל 101)"
+                   class="w-full p-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-lg text-center">
+            <button onclick="handleLogin()" id="loginBtn"
+                    class="w-full bg-slate-800 text-white p-4 rounded-xl font-bold text-lg hover:bg-slate-700 transition-all flex justify-center items-center gap-2">
+                <i data-lucide="log-in"></i> כניסה
+            </button>
         </div>
-      </div>
     </div>
 
-    <div id="reportsSection" class="hidden space-y-4">
-      <div class="bg-slate-800 text-white p-6 rounded-2xl shadow-lg flex justify-between items-center">
-        <div>
-          <p class="text-slate-400 text-xs font-bold uppercase tracking-wider">סה"כ חודשי</p>
-          <h3 class="text-3xl font-bold"><span id="reportTotalHours">0.00</span> <span class="text-lg font-normal opacity-60">שעות</span></h3>
+    <div id="dashboardSection" class="w-full max-w-md space-y-6 hidden">
+        <div class="flex justify-between items-center p-2">
+            <div>
+                <h2 class="text-xl font-bold text-slate-800">שלום, <span id="userNameDisplay">---</span></h2>
+                <p id="currentDate" class="text-sm text-slate-500"></p>
+            </div>
+            <button onclick="logout()" class="text-slate-400 hover:text-red-500">
+                <i data-lucide="log-out"></i>
+            </button>
         </div>
-        <select id="monthPicker" onchange="loadReport()" class="bg-slate-700 text-white border-none rounded-lg p-1 text-sm"></select>
-      </div>
-      <div id="reportEntriesList" class="space-y-3"></div>
+
+        <div class="glass-card p-8 rounded-3xl shadow-lg text-center space-y-6">
+            <div id="statusIndicator" class="inline-flex items-center gap-2 px-4 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-600">
+                <span class="w-2 h-2 rounded-full bg-slate-400"></span> Offline
+            </div>
+            <div class="text-5xl font-mono font-bold text-slate-800 py-4" id="timerDisplay">00:00:00</div>
+            <div class="flex gap-4">
+                <button id="startBtn" onclick="handleStart(event)" class="flex-1 bg-emerald-600 text-white p-5 rounded-2xl font-bold shadow-lg hover:bg-emerald-700 active:scale-95 transition-all">START</button>
+                <button id="endBtn" onclick="handleEnd(event)" disabled class="flex-1 bg-rose-600 text-white p-5 rounded-2xl font-bold shadow-lg hover:bg-rose-700 active:scale-95 transition-all disabled:opacity-30">STOP</button>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center">
+            <span class="text-slate-600 font-medium">סה"כ שעות החודש:</span>
+            <span id="monthlyHours" class="text-xl font-bold text-slate-800">0.00</span>
+        </div>
     </div>
-  </div>
 
-  <script>
-    // --- הגדרות תקשורת ---
-    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxpIm8v5F-r_uZSTl9Q_QzLyeDzrCEvnKNGDESem1IkBzAaGWV9Z4EPz2dJY16L8gGQ/exec";
+    <script>
+        // --- הגדרות תקשורת JSONP ---
+        const GOOGLE_SCRIPT_URL = "הדבק_כאן_את_הקישור_שמסתיים_ב_exec";
 
-    async function callServer(action, payload = {}) {
-      const response = await fetch(GOOGLE_SCRIPT_URL, {
-        method: "POST",
-        mode: "no-cors", // חשוב למניעת שגיאות CORS בגוגל
-        body: JSON.stringify({ action, payload })
-      });
-      // מכיוון ש-no-cors לא מחזיר גוף תשובה, במקרים של קריאת נתונים (כמו Login)
-      // נצטרך להשתמש בשיטה מעט שונה או לוודא שה-CORS מוגדר בשרת.
-      // לבינתיים, לצורך ה-STOP המהיר, זה יעבוד מצוין.
-    }
-    
-    // הערה: לביצוע Login ודוחות (קבלת נתונים), מומלץ להשתמש ב-JSONP או להגדיר CORS ב-GAS.
-    // לגרסת ה-GitHub, נשתמש ב-fetch רגיל:
-async function apiRequest(action, payload = {}) {
-    // ה-URL המדויק שלך (בלי ה-callback בקצה)
-    const url = "https://script.google.com/macros/s/AKfycbxpIm8v5F-r_uZSTl9Q_QzLyeDzrCEvnKNGDESem1IkBzAaGWV9Z4EPz2dJY16L8gGQ/exec";
-    
-    try {
-        const response = await fetch(url, {
-            method: 'POST', // גוגל דורש POST לבקשות כאלו
-            mode: 'cors',   // אנחנו רוצים לקרוא את התשובה
-            redirect: 'follow', // קריטי! גוגל תמיד עושה Redirect
-            body: JSON.stringify({ action, payload }),
-            headers: {
-                // משתמשים ב-text/plain כדי לעקוף בדיקת CORS מקדימה (Preflight)
-                'Content-Type': 'text/plain;charset=utf-8'
-            }
-        });
-        
-        if (!response.ok) throw new Error('Network response was not ok');
-        
-        const data = await response.json();
-        return data;
-        
-    } catch (error) {
-        console.error('Error detail:', error);
-        throw error;
-    }
-}
+        function apiRequestJSONP(action, payload) {
+            return new Promise((resolve, reject) => {
+                const callbackName = 'jsonp_' + Math.round(Math.random() * 1000000);
+                
+                window[callbackName] = function(data) {
+                    delete window[callbackName];
+                    const scriptTag = document.getElementById(callbackName);
+                    if (scriptTag) document.body.removeChild(scriptTag);
+                    resolve(data);
+                };
 
-    // --- לוגיקה של האפליקציה ---
-    lucide.createIcons();
-    let currentUser = null;
-    let timerInterval = null;
-    let startTime = null;
-    let isProcessing = false;
-
-    async function handleLogin() {
-      const userId = document.getElementById('userIdInput').value;
-      if(!userId) return alert("אנא הזן מזהה");
-      
-      const btn = document.getElementById('loginBtn');
-      btn.disabled = true;
-      btn.innerHTML = "מתחבר...";
-
-      try {
-        // ב-GitHub אנחנו משתמשים ב-apiRequest שבנינו
-        const res = await apiRequest('getUser', { userId });
-        if(res) {
-          currentUser = res;
-          showDashboard();
-        } else {
-          alert("מזהה לא נמצא");
-          btn.disabled = false;
-          btn.innerHTML = "כניסה";
+                const url = `${GOOGLE_SCRIPT_URL}?callback=${callbackName}&action=${action}&payload=${encodeURIComponent(JSON.stringify(payload))}`;
+                const script = document.createElement('script');
+                script.id = callbackName;
+                script.src = url;
+                script.onerror = () => reject(new Error('שגיאת תקשורת (JSONP)'));
+                document.body.appendChild(script);
+            });
         }
-      } catch (e) {
-        alert("שגיאת חיבור. וודא שה-URL של גוגל תקין.");
-        btn.disabled = false;
-      }
-    }
 
-    function showDashboard() {
-      document.getElementById('loginSection').classList.add('hidden');
-      document.getElementById('dashboardSection').classList.remove('hidden');
-      document.getElementById('userNameDisplay').innerText = currentUser.userName;
-      document.getElementById('currentDate').innerText = new Date().toLocaleDateString('he-IL', { weekday: 'long', month: 'long', day: 'numeric' });
-    }
+        // --- לוגיקה של האפליקציה ---
+        lucide.createIcons();
+        let currentUser = null;
+        let timerInterval = null;
+        let startTime = null;
+        let isProcessing = false;
 
-    async function handleStart(event) {
-      if(event) event.preventDefault();
-      updateUI(true); // עדכון אופטימי מיידי
-      startTimer(new Date());
-      
-      await apiRequest('startSession', { userId: currentUser.userId });
-    }
+        async function handleLogin() {
+            const userId = document.getElementById('userIdInput').value;
+            if(!userId) return alert("נא להזין מספר מזהה");
+            
+            const btn = document.getElementById('loginBtn');
+            btn.disabled = true;
+            btn.innerHTML = "מתחבר...";
 
-    async function handleEnd(event) {
-      if(event) event.preventDefault();
-      if(isProcessing) return;
-      isProcessing = true;
+            try {
+                const res = await apiRequestJSONP('getUser', { userId: userId });
+                if(res && res.userName) {
+                    currentUser = res;
+                    showDashboard();
+                } else {
+                    alert("משתמש לא נמצא במערכת");
+                    btn.disabled = false;
+                    btn.innerHTML = "כניסה";
+                }
+            } catch (e) {
+                alert("לא ניתן להתחבר לשרת גוגל. וודא שהקישור תקין.");
+                btn.disabled = false;
+                btn.innerHTML = "כניסה";
+            }
+        }
 
-      // עדכון ויזואלי מיידי
-      clearInterval(timerInterval);
-      document.getElementById('timerDisplay').innerText = "00:00:00";
-      updateUI(false);
+        function showDashboard() {
+            document.getElementById('loginSection').classList.add('hidden');
+            document.getElementById('dashboardSection').classList.remove('hidden');
+            document.getElementById('userNameDisplay').innerText = currentUser.userName;
+            document.getElementById('currentDate').innerText = new Date().toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' });
+            if (currentUser.monthlyHours) document.getElementById('monthlyHours').innerText = currentUser.monthlyHours;
+        }
 
-      try {
-        const res = await apiRequest('endSession', { userId: currentUser.userId });
-        alert("נשמר בהצלחה! משך זמן: " + res.duration + " דקות.");
-      } catch (e) {
-        console.log("סנכרון ברקע נכשל, אך הפעולה נרשמה.");
-      } finally {
-        isProcessing = false;
-      }
-    }
+        async function handleStart(event) {
+            if(event) event.preventDefault();
+            updateUI(true);
+            startTimer(new Date());
+            await apiRequestJSONP('startSession', { userId: currentUser.userId });
+        }
 
-    function startTimer(time) {
-      startTime = time;
-      if(timerInterval) clearInterval(timerInterval);
-      timerInterval = setInterval(updateTimerDisplay, 1000);
-    }
+        async function handleEnd(event) {
+            if(event) event.preventDefault();
+            if(isProcessing) return;
+            isProcessing = true;
 
-    function updateTimerDisplay() {
-      const diff = new Date() - startTime;
-      const h = Math.floor(diff / 3600000).toString().padStart(2, '0');
-      const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
-      const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
-      document.getElementById('timerDisplay').innerText = `${h}:${m}:${s}`;
-    }
+            clearInterval(timerInterval);
+            document.getElementById('timerDisplay').innerText = "00:00:00";
+            updateUI(false);
 
-    function updateUI(isActive) {
-      const startBtn = document.getElementById('startBtn');
-      const endBtn = document.getElementById('endBtn');
-      const status = document.getElementById('statusIndicator');
-      
-      if(isActive) {
-        startBtn.disabled = true;
-        endBtn.disabled = false;
-        status.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Active Now';
-        status.className = "inline-flex items-center gap-2 px-4 py-1 rounded-full text-sm font-medium bg-emerald-50 text-emerald-600";
-      } else {
-        startBtn.disabled = false;
-        endBtn.disabled = true;
-        status.innerHTML = '<span class="w-2 h-2 rounded-full bg-slate-400"></span> Offline';
-        status.className = "inline-flex items-center gap-2 px-4 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-600";
-      }
-    }
+            try {
+                const res = await apiRequestJSONP('endSession', { userId: currentUser.userId });
+                if(res && res.duration) alert("הסשן נסגר: " + res.duration + " דקות.");
+            } catch (e) {
+                console.error("סנכרון נכשל");
+            } finally {
+                isProcessing = false;
+            }
+        }
 
-    function switchTab(tabName) {
-      const sections = ['attendanceSection', 'manualEntrySection', 'reportsSection'];
-      sections.forEach(s => document.getElementById(s).classList.add('hidden'));
-      
-      if(tabName === 'attendance') document.getElementById('attendanceSection').classList.remove('hidden');
-      if(tabName === 'manual') document.getElementById('manualEntrySection').classList.remove('hidden');
-      if(tabName === 'reports') {
-        document.getElementById('reportsSection').classList.remove('hidden');
-        loadReport();
-      }
-      
-      // עדכון עיצוב הטאבים
-      ['attendance', 'manual', 'reports'].forEach(t => {
-        const el = document.getElementById('tab-' + t);
-        el.className = t === tabName ? "flex-1 py-2 text-sm font-medium rounded-lg bg-slate-800 text-white" : "flex-1 py-2 text-sm font-medium text-slate-500";
-      });
-    }
+        function startTimer(time) {
+            startTime = time;
+            if(timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                const diff = new Date() - startTime;
+                const h = Math.floor(diff / 3600000).toString().padStart(2, '0');
+                const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
+                const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
+                document.getElementById('timerDisplay').innerText = `${h}:${m}:${s}`;
+            }, 1000);
+        }
 
-    function logout() { location.reload(); }
-  </script>
+        function updateUI(isActive) {
+            const startBtn = document.getElementById('startBtn');
+            const endBtn = document.getElementById('endBtn');
+            const status = document.getElementById('statusIndicator');
+            
+            if(isActive) {
+                startBtn.disabled = true;
+                endBtn.disabled = false;
+                status.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Active Now';
+                status.className = "inline-flex items-center gap-2 px-4 py-1 rounded-full text-sm font-medium bg-emerald-50 text-emerald-600";
+            } else {
+                startBtn.disabled = false;
+                endBtn.disabled = true;
+                status.innerHTML = '<span class="w-2 h-2 rounded-full bg-slate-400"></span> Offline';
+                status.className = "inline-flex items-center gap-2 px-4 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-600";
+            }
+        }
+
+        function logout() { location.reload(); }
+    </script>
 </body>
 </html>
