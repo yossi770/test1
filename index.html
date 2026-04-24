@@ -94,7 +94,28 @@
   <script>
     // --- הגדרות תקשורת ---
     const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxpIm8v5F-r_uZSTl9Q_QzLyeDzrCEvnKNGDESem1IkBzAaGWV9Z4EPz2dJY16L8gGQ/exec";
-
+async function apiRequest(action, payload = {}) {
+    const url = GOOGLE_SCRIPT_URL;
+    
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            redirect: 'follow', // חשוב מאוד עבור גוגל סקריפט
+            body: JSON.stringify({ action, payload }),
+            headers: {
+                'Content-Type': 'text/plain;charset=utf-8', 
+                // משתמשים ב-text/plain כדי למנוע בקשות Preflight של CORS
+            }
+        });
+        
+        if (!response.ok) throw new Error('Network response was not ok');
+        return await response.json();
+        
+    } catch (error) {
+        console.error('Error:', error);
+        throw error;
+    }
+}
     async function callServer(action, payload = {}) {
       const response = await fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
@@ -108,13 +129,7 @@
     
     // הערה: לביצוע Login ודוחות (קבלת נתונים), מומלץ להשתמש ב-JSONP או להגדיר CORS ב-GAS.
     // לגרסת ה-GitHub, נשתמש ב-fetch רגיל:
-    async function apiRequest(action, payload = {}) {
-        const response = await fetch(GOOGLE_SCRIPT_URL + "?callback=callback", {
-            method: "POST",
-            body: JSON.stringify({ action, payload })
-        });
-        return await response.json();
-    }
+
 
     // --- לוגיקה של האפליקציה ---
     lucide.createIcons();
