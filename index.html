@@ -79,213 +79,279 @@
             <div id="reportEntriesList" class="space-y-3"></div>
         </div>
     </div>
+// --- Configuration ---
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxpIm8v5F-r_uZSTl9Q_QzLyeDzrCEvnKNGDESem1IkBzAaGWV9Z4EPz2dJY16L8gGQ/exec";
 
-    <script>
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxpIm8v5F-r_uZSTl9Q_QzLyeDzrCEvnKNGDESem1IkBzAaGWV9Z4EPz2dJY16L8gGQ/exec"; // החלף בקישור שלך
+// --- Global State ---
+let currentUser = null;
+let timerInterval = null;
+let startTime = null;
+let isProcessing = false;
+let editingRow = null; // משתנה למעקב אחרי שורה בעריכה
 
-        function apiRequestJSONP(action, payload) {
-            return new Promise((resolve, reject) => {
-                const callbackName = 'jsonp_' + Math.round(Math.random() * 1000000);
-                window[callbackName] = (data) => {
-                    delete window[callbackName];
-                    document.getElementById(callbackName)?.remove();
-                    resolve(data);
-                };
-                const script = document.createElement('script');
-                script.id = callbackName;
-                script.src = `${GOOGLE_SCRIPT_URL}?callback=${callbackName}&action=${action}&payload=${encodeURIComponent(JSON.stringify(payload))}`;
-                script.onerror = () => reject(new Error('Connection failed'));
-                document.body.appendChild(script);
-            });
-        }
-
-        function showToast(msg, type = 'success') {
-            const container = document.getElementById('toastContainer');
-            const toast = document.createElement('div');
-            toast.className = `${type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'} text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 toast-animate`;
-            toast.innerHTML = `<i data-lucide="${type === 'success' ? 'check-circle' : 'alert-circle'}" class="w-5 h-5"></i><span>${msg}</span>`;
-            container.appendChild(toast);
-            lucide.createIcons();
-            setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 500); }, 3000);
-        }
-
-        function formatMins(totalMins) {
-            const m = parseInt(totalMins) || 0;
-            const hrs = Math.floor(m / 60);
-            const mins = m % 60;
-            return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
-        }
-
-        lucide.createIcons();
-        let currentUser = null;
-        let timerInterval = null;
-function handleStart() {
-    setLoading(true); // נעילת כפתורים למניעת כפילויות [cite: 45]
-    google.script.run
-        .withSuccessHandler(res => {
-            setLoading(false);
-            if(res && res.success) {
-                startTimer(new Date()); // הפעלת הטיימר [cite: 28]
-                updateUI(true); // עדכון מצב כפתורים [cite: 39]
-                if(typeof showToast === 'function') showToast("הסשן התחיל בהצלחה");
-            } else {
-                alert(res.message || "שגיאה בהתחלת הסשן");
-            }
-        })
-        .withFailureHandler(err => {
-            setLoading(false);
-            alert("שגיאת תקשורת: " + err.message);
-        })
-        .startSession(currentUser.userId); [cite: 23]
-}
-function handleEnd() {
-    if (isProcessing) return; // הגנה נוספת מתוך הקוד שלך [cite: 29]
-    isProcessing = true;
-    setLoading(true);
-
-    google.script.run
-        .withSuccessHandler(res => {
-            isProcessing = false;
-            setLoading(false);
-            if(res && res.success) {
-                if(timerInterval) clearInterval(timerInterval); // עצירת הטיימר [cite: 32]
-                updateUI(false);
-                alert("הסשן הסתיים! משך זמן: " + res.duration + " דקות."); [cite: 25]
-                loadReport(); // רענון הדוח [cite: 63]
-            } else {
-                alert(res.message || "שגיאה בסגירת הסשן");
-            }
-        })
-        .withFailureHandler(err => {
-            isProcessing = false;
-            setLoading(false);
-            alert("שגיאת תקשורת בסגירה: " + err.message);
-        })
-        .endSession(currentUser.userId); [cite: 26]
-}
-        
-        async function handleLogin() {
-            const id = document.getElementById('userIdInput').value;
-            if(!id) return showToast("Enter ID", "error");
-            try {
-                const user = await apiRequestJSONP('getUser', { userId: id });
-                if(user?.userName) {
-                    currentUser = user;
-                    document.getElementById('loginSection').classList.add('hidden');
-                    document.getElementById('dashboardSection').classList.remove('hidden');
-                    document.getElementById('userNameDisplay').innerText = user.userName;
-                    document.getElementById('dailyTotalDisplay').innerText = formatMins(user.dailyTotal);
-                    loadReport();
-                } else showToast("User not found", "error");
-            } catch (e) { showToast("Error connecting", "error"); }
-        }
-
-        function switchTab(tab) {
-            ['attendance', 'manual', 'reports'].forEach(t => {
-                document.getElementById(t + 'Section').classList.add('hidden');
-                document.getElementById('tab-' + t).className = "flex-1 py-2 text-sm font-medium text-slate-500";
-            });
-            document.getElementById(tab + 'Section').classList.remove('hidden');
-            document.getElementById('tab-' + tab).className = "flex-1 py-2 text-sm font-medium rounded-lg bg-slate-800 text-white";
-            if(tab === 'manual') document.getElementById('manualDate').value = new Date().toISOString().split('T')[0];
-            if(tab === 'reports') loadReport();
-        }
-
-        async function submitManualEntry() {
-            const btn = document.getElementById('submitManualBtn');
-            const data = { 
-                userId: currentUser.userId, 
-                date: document.getElementById('manualDate').value,
-                startTime: document.getElementById('manualStart').value,
-                endTime: document.getElementById('manualEnd').value
-            };
-            if(!data.date || !data.startTime || !data.endTime) return showToast("Fill all fields", "error");
-            
-            btn.disabled = true; btn.innerText = "Saving...";
-            const res = await apiRequestJSONP('manualEntry', data);
-            btn.disabled = false; btn.innerText = "Save Entry";
-            
-            if(res?.success) {
-                showToast("Saved!");
-                document.getElementById('manualStart').value = "";
-                document.getElementById('manualEnd').value = "";
-                loadReport();
-            } else showToast("Error saving", "error");
-        }
-
-        // פונקציית עזר להמרת דקות לפורמט שעות ודקות 
-function formatDurationReadable(totalMinutes) {
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    if (hours > 0) return hours + "h " + minutes + "m";
-    return minutes + "m";
+// --- Core API Engine (JSONP) ---
+function apiRequestJSONP(action, payload) {
+    return new Promise((resolve, reject) => {
+        const callbackName = 'jsonp_' + Math.round(Math.random() * 1000000);
+        window[callbackName] = (data) => {
+            delete window[callbackName];
+            document.getElementById(callbackName)?.remove();
+            resolve(data);
+        };
+        const script = document.createElement('script');
+        script.id = callbackName;
+        script.src = `${GOOGLE_SCRIPT_URL}?callback=${callbackName}&action=${action}&payload=${encodeURIComponent(JSON.stringify(payload))}`;
+        script.onerror = () => {
+            document.getElementById(callbackName)?.remove();
+            reject(new Error('Connection failed'));
+        };
+        document.body.appendChild(script);
+    });
 }
 
-function loadReport() {
-    const monthPicker = document.getElementById('monthPicker');
-    // ... (קוד מילוי ה-monthPicker הקיים) [cite: 59, 62]
-
-    const monthKey = monthPicker.value;
-    const listContainer = document.getElementById('reportEntriesList');
-    listContainer.innerHTML = '<p class="text-center text-slate-400 py-10">טוען נתונים...</p>';
-
-    apiRequestJSONP('getUserReport', { userId: currentUser.userId, monthKey: monthKey })
-        .then(data => {
-            document.getElementById('reportTotalHours').innerText = data.totalHours + " hrs";
-            
-            if (data.entries.length === 0) {
-                listContainer.innerHTML = '<p class="text-center text-slate-400 py-10">לא נמצאו דיווחים לחודש זה.</p>';
-                return;
-            }
-
-            listContainer.innerHTML = data.entries.map(entry => `
-                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center mb-2">
-                    <div>
-                        <p class="font-bold text-slate-800">${entry.date}</p>
-                        <p class="text-xs text-slate-500">${entry.start} - ${entry.end || 'פעיל'}</p>
-                    </div>
-                    <div class="flex items-center gap-4">
-                        <span class="bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-xs font-bold">
-                            ${formatDurationReadable(entry.duration)}
-                        </span>
-                        <button onclick="handleDelete('${entry.monthKey}', ${entry.rowIndex})" class="text-rose-500 hover:bg-rose-50 p-2 rounded-lg transition-colors">
-                            <i data-lucide="trash-2" class="w-4 h-4"></i>
-                        </button>
-                    </div>
-                </div>
-            `).join('');
-            lucide.createIcons(); // רענון האייקונים של Trash
-        });
+// --- UI Helpers ---
+function showToast(msg, type = 'success') {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `${type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'} text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 toast-animate`;
+    toast.innerHTML = `<i data-lucide="${type === 'success' ? 'check-circle' : 'alert-circle'}" class="w-5 h-5"></i><span>${msg}</span>`;
+    container.appendChild(toast);
+    lucide.createIcons();
+    setTimeout(() => { 
+        toast.style.opacity = '0'; 
+        setTimeout(() => toast.remove(), 500); 
+    }, 3000);
 }
 
-// פונקציה לטיפול במחיקה
-async function handleDelete(monthKey, rowIndex) {
-    if (!confirm("האם אתה בטוח שברצונך למחוק דיווח זה?")) return;
-    
+function formatMinsReadable(totalMins) {
+    const m = parseInt(totalMins) || 0;
+    const hrs = Math.floor(m / 60);
+    const mins = m % 60;
+    return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+}
+
+function setLoading(isLoading) {
+    document.getElementById('startBtn').disabled = isLoading;
+    document.getElementById('endBtn').disabled = isLoading;
+    const startBtn = document.getElementById('startBtn');
+    if (isLoading) startBtn.classList.add('opacity-50');
+    else startBtn.classList.remove('opacity-50');
+}
+
+// --- App Logic ---
+async function handleLogin() {
+    const id = document.getElementById('userIdInput').value;
+    const btn = document.getElementById('loginBtn');
+    if(!id) return showToast("Enter ID", "error");
+
+    btn.disabled = true; btn.innerHTML = "Checking...";
+
     try {
-        const res = await apiRequestJSONP('deleteEntry', { monthKey: monthKey, rowIndex: rowIndex });
-        if (res.success) {
-            alert("הדיווח נמחק בהצלחה");
-            loadReport(); // רענון הרשימה
+        const user = await apiRequestJSONP('getUser', { userId: id });
+        if(user && user.userName) {
+            currentUser = user;
+            document.getElementById('loginSection').classList.add('hidden');
+            document.getElementById('dashboardSection').classList.remove('hidden');
+            document.getElementById('userNameDisplay').innerText = user.userName;
+            document.getElementById('currentDate').innerText = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+            document.getElementById('dailyTotalDisplay').innerText = formatMinsReadable(user.dailyTotal);
+            loadReport();
         } else {
-            alert("שגיאה במחיקה: " + res.message);
+            showToast("User ID not found", "error");
+            btn.disabled = false; btn.innerHTML = '<i data-lucide="log-in"></i> Login';
         }
     } catch (e) {
-        alert("שגיאת תקשורת");
+        showToast("Connection Error", "error");
+        btn.disabled = false; btn.innerHTML = '<i data-lucide="log-in"></i> Login';
+    }
+    lucide.createIcons();
+}
+
+async function handleStart() {
+    if (isProcessing) return;
+    isProcessing = true; setLoading(true);
+    try {
+        const res = await apiRequestJSONP('startSession', { userId: currentUser.userId });
+        if(res && res.success) {
+            startTime = new Date();
+            timerInterval = setInterval(updateTimerDisplay, 1000);
+            updateUI(true);
+            showToast("Session Started");
+        } else showToast(res.message || "Failed to start", "error");
+    } catch (e) { showToast("Request failed", "error"); }
+    finally { isProcessing = false; setLoading(false); }
+}
+
+async function handleEnd() {
+    if (isProcessing) return;
+    isProcessing = true; setLoading(true);
+    try {
+        const res = await apiRequestJSONP('endSession', { userId: currentUser.userId });
+        if(res && res.success) {
+            clearInterval(timerInterval);
+            document.getElementById('timerDisplay').innerText = "00:00:00";
+            updateUI(false);
+            showToast("Session Ended: " + res.duration + "m");
+            loadReport();
+        } else showToast(res.message || "Failed to stop", "error");
+    } catch (e) { showToast("Request failed", "error"); }
+    finally { isProcessing = false; setLoading(false); }
+}
+
+function updateTimerDisplay() {
+    const now = new Date();
+    const diff = now - startTime;
+    const h = Math.floor(diff / 3600000).toString().padStart(2, '0');
+    const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
+    const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
+    document.getElementById('timerDisplay').innerText = `${h}:${m}:${s}`;
+}
+
+function updateUI(isActive) {
+    const startBtn = document.getElementById('startBtn');
+    const endBtn = document.getElementById('endBtn');
+    const status = document.getElementById('statusIndicator');
+    if(isActive) {
+        startBtn.disabled = true; endBtn.disabled = false;
+        status.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Active Now';
+        status.className = "inline-flex items-center gap-2 px-4 py-1 rounded-full text-sm font-medium bg-emerald-50 text-emerald-600";
+    } else {
+        startBtn.disabled = false; endBtn.disabled = true;
+        status.innerHTML = '<span class="w-2 h-2 rounded-full bg-slate-400"></span> Offline';
+        status.className = "inline-flex items-center gap-2 px-4 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-600";
     }
 }
 
-        async function deleteEntry(rowId) {
-            if(!confirm("Are you sure?")) return;
-            const res = await apiRequestJSONP('deleteEntry', { userId: currentUser.userId, rowId: rowId });
-            if(res?.success) {
-                showToast("Deleted");
-                loadReport();
-            } else showToast("Delete failed", "error");
+function switchTab(tab) {
+    ['attendance', 'manual', 'reports'].forEach(t => {
+        document.getElementById(t + 'Section').classList.add('hidden');
+        document.getElementById('tab-' + t).className = "flex-1 py-2 text-sm font-medium text-slate-500 transition-all";
+    });
+    document.getElementById(tab + 'Section').classList.remove('hidden');
+    document.getElementById('tab-' + tab).className = "flex-1 py-2 text-sm font-medium rounded-lg bg-slate-800 text-white transition-all";
+    
+    if(tab === 'manual') resetManualForm();
+    if(tab === 'reports') loadReport();
+}
+
+// --- Manual Entry & Edit Logic ---
+
+function resetManualForm() {
+    editingRow = null;
+    document.getElementById('manualStart').value = "";
+    document.getElementById('manualEnd').value = "";
+    document.getElementById('manualDate').valueAsDate = new Date();
+    document.getElementById('submitManualBtn').innerHTML = '<i data-lucide="check-circle"></i> Save Entry';
+    lucide.createIcons();
+}
+
+function openEdit(entry) {
+    editingRow = { monthKey: entry.monthKey, rowIndex: entry.rowIndex };
+    switchTab('manual');
+    document.getElementById('manualDate').value = entry.date;
+    document.getElementById('manualStart').value = entry.start;
+    document.getElementById('manualEnd').value = entry.end;
+    document.getElementById('submitManualBtn').innerHTML = '<i data-lucide="save"></i> Update Entry';
+    lucide.createIcons();
+}
+
+async function submitManualEntry() {
+    const data = { 
+        userId: currentUser.userId, 
+        date: document.getElementById('manualDate').value,
+        startTime: document.getElementById('manualStart').value,
+        endTime: document.getElementById('manualEnd').value
+    };
+    if(!data.date || !data.startTime || !data.endTime) return showToast("Fill all fields", "error");
+    
+    const btn = document.getElementById('submitManualBtn');
+    btn.disabled = true; btn.innerText = "Saving...";
+
+    try {
+        let res;
+        if (editingRow) {
+            res = await apiRequestJSONP('editEntry', { ...data, ...editingRow });
+        } else {
+            res = await apiRequestJSONP('manualEntry', data);
         }
 
+        if(res && res.success) {
+            showToast(editingRow ? "Updated!" : "Saved!");
+            resetManualForm();
+            loadReport();
+            if(editingRow) switchTab('reports');
+        } else showToast(res?.message || "Error saving", "error");
+    } catch (e) {
+        showToast("Connection failed", "error");
+    } finally {
+        btn.disabled = false;
+        resetManualForm();
+    }
+}
 
-        function logout() { location.reload(); }
-    </script>
-</body>
+async function handleDelete(monthKey, rowIndex) {
+    if (!confirm("Are you sure?")) return;
+    try {
+        const res = await apiRequestJSONP('deleteEntry', { monthKey, rowIndex });
+        if (res && res.success) { showToast("Entry Deleted"); loadReport(); }
+        else showToast(res?.message || "Delete failed", "error");
+    } catch (e) { showToast("Connection failed", "error"); }
+}
+
+async function loadReport() {
+    const picker = document.getElementById('monthPicker');
+    if(!picker.innerHTML) {
+        const now = new Date();
+        for(let i=0; i<4; i++) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const val = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}`;
+            picker.innerHTML += `<option value="${val}">${val}</option>`;
+        }
+    }
+
+    const list = document.getElementById('reportEntriesList');
+    list.innerHTML = '<p class="text-center text-slate-400 py-10 italic">Loading records...</p>';
+
+    try {
+        const data = await apiRequestJSONP('getUserReport', { userId: currentUser.userId, monthKey: picker.value });
+        document.getElementById('reportTotalHours').innerText = data.totalHours + " hrs";
+        
+        if (!data.entries || data.entries.length === 0) {
+            list.innerHTML = '<p class="text-center text-slate-400 py-10 italic">No records found.</p>';
+            return;
+        }
+
+list.innerHTML = data.entries.map(entry => {
+    // הפיכת האובייקט לטקסט בטוח כדי שלא ישבור את ה-HTML
+    const entryData = JSON.stringify(entry).replace(/'/g, "\\'");
+    
+    return `
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center mb-2">
+        <div>
+            <p class="font-bold text-slate-800">${entry.date}</p>
+            <p class="text-xs text-slate-500">${entry.start} - ${entry.end || 'Active'}</p>
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="bg-slate-100 text-slate-700 px-2 py-1 rounded-full text-xs font-bold">
+                ${formatMinsReadable(entry.duration)}
+            </span>
+            <button onclick='openEdit(${entryData})' class="text-blue-500 hover:bg-blue-50 p-2 rounded-lg transition-colors">
+                <i data-lucide="edit-3" class="w-4 h-4"></i>
+            </button>
+            <button onclick="handleDelete('${entry.monthKey}', ${entry.rowIndex})" class="text-rose-500 hover:bg-rose-50 p-2 rounded-lg transition-colors">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+        </div>
+    </div>
+    `;
+}).join('');
+    } catch (e) {
+        list.innerHTML = '<p class="text-center text-rose-500 py-10">Error loading report.</p>';
+    }
+    lucide.createIcons();
+}
+
+function logout() { location.reload(); }
+lucide.createIcons();
+   </body>
 </html>
