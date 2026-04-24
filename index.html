@@ -289,53 +289,82 @@
             } catch (e) { showToast("Connection failed", "error"); }
         }
 
-        async function loadReport() {
-            const picker = document.getElementById('monthPicker');
-            if(!picker.innerHTML) {
-                const now = new Date();
-                for(let i=0; i<4; i++) {
-                    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-                    const val = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}`;
-                    picker.innerHTML += `<option value="${val}">${val}</option>`;
-                } 
-            }
-
-            const list = document.getElementById('reportEntriesList');
-            list.innerHTML = '<p class="text-center text-slate-400 py-10 italic">Loading records...</p>';
-
-            try {
-                const data = await apiRequestJSONP('getUserReport', { userId: currentUser.userId, monthKey: picker.value });
-                document.getElementById('reportTotalHours').innerText = data.totalHours + " hrs";
-                
-                if (!data.entries || data.entries.length === 0) {
-                    list.innerHTML = '<p class="text-center text-slate-400 py-10 italic">No records found.</p>';
-                    return; 
-                }
-
-                list.innerHTML = data.entries.map(entry => {
-                    const entryData = JSON.stringify(entry).replace(/'/g, "\\'");
-                    return `
-                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center mb-2">
-                        <div>
-                            <p class="font-bold text-slate-800">${entry.date}</p>
-                            <p class="text-xs text-slate-500">${entry.start} - ${entry.end || 'Active'}</p>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <span class="bg-slate-100 text-slate-700 px-2 py-1 rounded-full text-xs font-bold">
-                                ${formatMinsReadable(entry.duration)}
-                            </span>
-                            <button onclick='openEdit(${entryData})' class="text-blue-500 hover:bg-blue-50 p-2 rounded-lg transition-colors">
-                                <i data-lucide="edit-3" class="w-4 h-4"></i>
-                            </button>
-                            <button onclick="handleDelete('${entry.monthKey}', ${entry.rowIndex})" class="text-rose-500 hover:bg-rose-50 p-2 rounded-lg transition-colors">
-                                <i data-lucide="trash-2" class="w-4 h-4"></i>
-                            </button>
-                        </div>
-                    </div>`;
-                }).join('');
-            } catch (e) { list.innerHTML = '<p class="text-center text-rose-500 py-10">Error loading report.</p>'; }
-            lucide.createIcons();
+async function loadReport() {
+    const picker = document.getElementById('monthPicker');
+    if(!picker.innerHTML) {
+        const now = new Date();
+        for(let i=0; i<4; i++) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const val = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}`;
+            picker.innerHTML += `<option value="${val}">${val}</option>`;
         }
+    }
+
+    const list = document.getElementById('reportEntriesList');
+    list.innerHTML = '<p class="text-center text-slate-400 py-10 italic">Loading records...</p>';
+
+    try {
+        const data = await apiRequestJSONP('getUserReport', { userId: currentUser.userId, monthKey: picker.value });
+        document.getElementById('reportTotalHours').innerText = data.totalHours + " hrs";
+        
+        if (!data.entries || data.entries.length === 0) {
+            list.innerHTML = '<p class="text-center text-slate-400 py-10 italic">No records found.</p>';
+            return;
+        }
+
+        // --- לוגיקת איחוד לפי ימים ---
+        const groupedEntries = {};
+        data.entries.forEach(entry => {
+            if (!groupedEntries[entry.date]) {
+                groupedEntries[entry.date] = {
+                    date: entry.date,
+                    totalDuration: 0,
+                    subEntries: []
+                };
+            }
+            groupedEntries[entry.date].totalDuration += parseInt(entry.duration || 0);
+            groupedEntries[entry.date].subEntries.push(entry);
+        });
+
+        // יצירת ה-HTML המאוחד
+        list.innerHTML = Object.values(groupedEntries).map(day => `
+            <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden mb-3">
+                <div class="bg-slate-50 px-4 py-2 border-b border-slate-100 flex justify-between items-center">
+                    <span class="font-bold text-slate-700">${day.date}</span>
+                    <span class="text-xs font-black bg-slate-200 text-slate-600 px-2 py-1 rounded-md">
+                        Daily: ${formatMinsReadable(day.totalDuration)}
+                    </span>
+                </div>
+                
+                <div class="p-2 space-y-1">
+                    ${day.subEntries.map(entry => {
+                        const entryData = JSON.stringify(entry).replace(/'/g, "\\'");
+                        return `
+                        <div class="flex justify-between items-center p-2 hover:bg-slate-50 rounded-lg transition-colors group">
+                            <div class="text-sm text-slate-600">
+                                <span class="font-medium">${entry.start} - ${entry.end || 'Active'}</span>
+                                <span class="text-xs text-slate-400 ml-2">(${formatMinsReadable(entry.duration)})</span>
+                            </div>
+                            <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onclick='openEdit(${entryData})' class="text-blue-500 p-1.5 hover:bg-blue-100 rounded-md">
+                                    <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                                </button>
+                                <button onclick="handleDelete('${entry.monthKey}', ${entry.rowIndex})" class="text-rose-500 p-1.5 hover:bg-rose-100 rounded-md">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                </button>
+                            </div>
+                        </div>`;
+                    }).join('')}
+                </div>
+            </div>
+        `).join('');
+        
+    } catch (e) { 
+        console.error(e);
+        list.innerHTML = '<p class="text-center text-rose-500 py-10">Error loading report.</p>'; 
+    }
+    lucide.createIcons();
+}
 
         function logout() { location.reload(); }
         lucide.createIcons();
