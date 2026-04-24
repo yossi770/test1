@@ -87,7 +87,7 @@
         let timerInterval = null;
         let startTime = null;
         let isProcessing = false;
-        let editingRow = null; [cite: 235]
+        let editingRow = null;
 
         // מנוע JSONP לתקשורת עם GitHub Pages
         function apiRequestJSONP(action, payload) {
@@ -106,7 +106,7 @@
                     reject(new Error('Connection failed'));
                 };
                 document.body.appendChild(script);
-            }); [cite: 236]
+            });
         }
 
         function showToast(msg, type = 'success') {
@@ -119,14 +119,14 @@
             setTimeout(() => { 
                 toast.style.opacity = '0'; 
                 setTimeout(() => toast.remove(), 500); 
-            }, 3000); [cite: 241]
+            }, 3000);
         }
 
         function formatMinsReadable(totalMins) {
             const m = parseInt(totalMins) || 0;
             const hrs = Math.floor(m / 60);
             const mins = m % 60;
-            return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`; [cite: 243]
+            return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
         }
 
         function setLoading(isLoading) {
@@ -134,7 +134,7 @@
             document.getElementById('endBtn').disabled = isLoading;
             const startBtn = document.getElementById('startBtn');
             if (isLoading) startBtn.classList.add('opacity-50');
-            else startBtn.classList.remove('opacity-50'); [cite: 245]
+            else startBtn.classList.remove('opacity-50');
         }
 
         async function handleLogin() {
@@ -161,7 +161,7 @@
                 showToast("Connection Error", "error");
                 btn.disabled = false; btn.innerHTML = '<i data-lucide="log-in"></i> Login';
             }
-            lucide.createIcons(); [cite: 253]
+            lucide.createIcons();
         }
 
         async function handleStart() {
@@ -176,7 +176,7 @@
                     showToast("Session Started");
                 } else showToast(res.message || "Failed to start", "error");
             } catch (e) { showToast("Request failed", "error"); }
-            finally { isProcessing = false; setLoading(false); } [cite: 258]
+            finally { isProcessing = false; setLoading(false); }
         }
 
         async function handleEnd() {
