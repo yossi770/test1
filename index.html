@@ -10,9 +10,13 @@
         .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(229, 231, 235, 0.5); }
         body { background-color: #f3f4f6; font-family: system-ui, -apple-system, sans-serif; }
         .hidden { display: none !important; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(20px) translateX(-50%); } to { opacity: 1; transform: translateY(0) translateX(-50%); } }
+        .toast-animate { animation: slideIn 0.3s ease-out forwards; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center p-4">
+
+    <div id="toastContainer" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 space-y-2 w-full max-w-xs"></div>
 
     <div id="loginSection" class="w-full max-w-md mt-10 p-8 glass-card rounded-2xl shadow-xl">
         <div class="text-center mb-8">
@@ -51,7 +55,13 @@
                 <div id="statusIndicator" class="inline-flex items-center gap-2 px-4 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-600">
                     <span class="w-2 h-2 rounded-full bg-slate-400"></span> Offline
                 </div>
+                
                 <div class="text-5xl font-mono font-bold text-slate-800 py-4" id="timerDisplay">00:00:00</div>
+                
+                <div class="text-sm font-semibold text-slate-400 uppercase tracking-wide">
+                    Today's Total: <span id="dailyTotalDisplay" class="text-slate-600">0h 0m</span>
+                </div>
+
                 <div class="flex gap-4">
                     <button id="startBtn" onclick="handleStart()" class="flex-1 bg-emerald-600 text-white p-5 rounded-2xl font-bold shadow-lg hover:bg-emerald-700 active:scale-95 transition-all">START</button>
                     <button id="endBtn" onclick="handleEnd()" disabled class="flex-1 bg-rose-600 text-white p-5 rounded-2xl font-bold shadow-lg hover:bg-rose-700 active:scale-95 transition-all disabled:opacity-30">STOP</button>
@@ -102,7 +112,6 @@
         // --- CONFIGURATION ---
         const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxpIm8v5F-r_uZSTl9Q_QzLyeDzrCEvnKNGDESem1IkBzAaGWV9Z4EPz2dJY16L8gGQ/exec";
 
-        // JSONP Wrapper for GitHub Pages
         function apiRequestJSONP(action, payload) {
             return new Promise((resolve, reject) => {
                 const callbackName = 'jsonp_' + Math.round(Math.random() * 1000000);
@@ -121,6 +130,49 @@
             });
         }
 
+        // --- UI HELPERS ---
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            const bgColor = type === 'success' ? 'bg-emerald-600' : 'bg-rose-600';
+            const icon = type === 'success' ? 'check-circle' : 'alert-circle';
+            
+            toast.className = `${bgColor} text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 toast-animate`;
+            toast.innerHTML = `<i data-lucide="${icon}" class="w-5 h-5"></i> <span class="font-medium">${message}</span>`;
+            
+            container.appendChild(toast);
+            lucide.createIcons();
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 500);
+            }, 3000);
+        }
+
+        function formatDuration(totalMinutes) {
+            const mins = parseInt(totalMinutes) || 0;
+            const h = Math.floor(mins / 60);
+            const m = mins % 60;
+            return h > 0 ? `${h}h ${m}m` : `${m}m`;
+        }
+
+        function formatDisplayDate(dateStr) {
+            if (!dateStr) return "";
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return dateStr;
+            return d.toLocaleDateString('en-GB'); 
+        }
+
+        function formatDisplayTime(timeStr) {
+            if (!timeStr) return "Active";
+            if (timeStr.includes('T')) {
+                const d = new Date(timeStr);
+                return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+            }
+            return timeStr;
+        }
+
+        // --- APP LOGIC ---
         lucide.createIcons();
         let currentUser = null;
         let timerInterval = null;
@@ -129,7 +181,7 @@
         async function handleLogin() {
             const userId = document.getElementById('userIdInput').value;
             const btn = document.getElementById('loginBtn');
-            if(!userId) return alert("Please enter User ID");
+            if(!userId) return showToast("Please enter User ID", "error");
             
             btn.disabled = true;
             btn.innerHTML = "Checking...";
@@ -139,13 +191,14 @@
                 if(user && user.userName) {
                     currentUser = user;
                     showDashboard();
+                    showToast(`Welcome back, ${user.userName}`);
                 } else {
-                    alert("ID not found!");
+                    showToast("User ID not found", "error");
                     btn.disabled = false;
                     btn.innerHTML = "Login";
                 }
             } catch (e) {
-                alert("Connection failed. Check your Script URL.");
+                showToast("Connection failed", "error");
                 btn.disabled = false;
                 btn.innerHTML = "Login";
             }
@@ -156,52 +209,60 @@
             document.getElementById('dashboardSection').classList.remove('hidden');
             document.getElementById('userNameDisplay').innerText = currentUser.userName;
             document.getElementById('currentDate').innerText = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+            
+            if (currentUser.dailyTotal) {
+                document.getElementById('dailyTotalDisplay').innerText = formatDuration(currentUser.dailyTotal);
+            }
             loadReport();
         }
 
-        // Tab Switching & Button Highlighting Logic
         function switchTab(tabName) {
             const sections = ['attendance', 'manual', 'reports'];
             sections.forEach(s => {
                 document.getElementById(s + 'Section').classList.add('hidden');
                 const btn = document.getElementById('tab-' + s);
-                // Reset styles to default gray
                 btn.classList.remove('bg-slate-800', 'text-white');
                 btn.classList.add('text-slate-500');
             });
 
-            // Show selected section
             document.getElementById(tabName + 'Section').classList.remove('hidden');
-            
-            // Highlight active button
             const activeBtn = document.getElementById('tab-' + tabName);
             activeBtn.classList.add('bg-slate-800', 'text-white');
             activeBtn.classList.remove('text-slate-500');
 
+            if (tabName === 'manual') {
+                document.getElementById('manualDate').value = new Date().toISOString().split('T')[0];
+            }
             if (tabName === 'reports') loadReport();
         }
 
         async function handleStart() {
             setLoading(true);
-            const res = await apiRequestJSONP('startSession', { userId: currentUser.userId });
+            try {
+                const res = await apiRequestJSONP('startSession', { userId: currentUser.userId });
+                if(res.success) {
+                    startTimer(new Date());
+                    updateUI(true);
+                    showToast("Session started");
+                }
+            } catch (e) { showToast("Error starting session", "error"); }
             setLoading(false);
-            if(res.success) {
-                startTimer(new Date());
-                updateUI(true);
-            }
         }
 
         async function handleEnd() {
             setLoading(true);
-            const res = await apiRequestJSONP('endSession', { userId: currentUser.userId });
+            try {
+                const res = await apiRequestJSONP('endSession', { userId: currentUser.userId });
+                if(res.success) {
+                    clearInterval(timerInterval);
+                    updateUI(false);
+                    document.getElementById('timerDisplay').innerText = "00:00:00";
+                    showToast(`Session saved: ${formatDuration(res.duration)}`);
+                    if (res.dailyTotal) document.getElementById('dailyTotalDisplay').innerText = formatDuration(res.dailyTotal);
+                    loadReport();
+                }
+            } catch (e) { showToast("Error saving session", "error"); }
             setLoading(false);
-            if(res.success) {
-                clearInterval(timerInterval);
-                updateUI(false);
-                document.getElementById('timerDisplay').innerText = "00:00:00";
-                alert("Session saved! Duration: " + res.duration + " minutes.");
-                loadReport();
-            }
         }
 
         function startTimer(time) {
@@ -230,25 +291,35 @@
         }
 
         async function submitManualEntry() {
-            const params = {
-                userId: currentUser.userId,
-                date: document.getElementById('manualDate').value,
-                startTime: document.getElementById('manualStart').value,
-                endTime: document.getElementById('manualEnd').value
-            };
-            if (!params.date || !params.startTime || !params.endTime) return alert("Please fill all fields");
+            const dateField = document.getElementById('manualDate');
+            const startField = document.getElementById('manualStart');
+            const endField = document.getElementById('manualEnd');
+
+            if (!dateField.value || !startField.value || !endField.value) {
+                return showToast("Please fill all fields", "error");
+            }
 
             const btn = document.getElementById('submitManualBtn');
             btn.disabled = true; btn.innerHTML = "Saving...";
             
-            const res = await apiRequestJSONP('manualEntry', params);
+            try {
+                const res = await apiRequestJSONP('manualEntry', {
+                    userId: currentUser.userId,
+                    date: dateField.value,
+                    startTime: startField.value,
+                    endTime: endField.value
+                });
+                
+                if (res.success) {
+                    showToast("Entry saved successfully");
+                    startField.value = ""; endField.value = "";
+                    dateField.value = new Date().toISOString().split('T')[0];
+                    loadReport();
+                } else { showToast(res.error || "Failed to save", "error"); }
+            } catch (e) { showToast("Connection error", "error"); }
+            
             btn.disabled = false; btn.innerHTML = '<i data-lucide="check-circle"></i> Save Entry';
             lucide.createIcons();
-
-            if (res.success) {
-                alert("Entry saved successfully!");
-                loadReport();
-            }
         }
 
         async function loadReport() {
@@ -263,19 +334,38 @@
             }
 
             const list = document.getElementById('reportEntriesList');
-            list.innerHTML = "Loading...";
-            const data = await apiRequestJSONP('getUserReport', { userId: currentUser.userId, monthKey: monthPicker.value });
+            list.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">Loading report...</p>';
             
-            document.getElementById('reportTotalHours').innerText = data.totalHours;
-            list.innerHTML = data.entries.map(e => `
-                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center">
-                    <div>
-                        <p class="font-bold text-slate-800">${e.date}</p>
-                        <p class="text-xs text-slate-500">${e.start} - ${e.end || 'Active'}</p>
+            try {
+                const data = await apiRequestJSONP('getUserReport', { userId: currentUser.userId, monthKey: monthPicker.value });
+                document.getElementById('reportTotalHours').innerText = data.totalHours;
+                
+                // Grouping by Date for Daily Totals
+                const grouped = data.entries.reduce((acc, entry) => {
+                    const day = formatDisplayDate(entry.date);
+                    if (!acc[day]) acc[day] = { total: 0, items: [] };
+                    acc[day].total += (parseInt(entry.duration) || 0);
+                    acc[day].items.push(entry);
+                    return acc;
+                }, {});
+
+                list.innerHTML = Object.entries(grouped).map(([day, group]) => `
+                    <div class="glass-card p-4 rounded-xl border border-slate-100 space-y-2">
+                        <div class="flex justify-between items-center border-b border-slate-100 pb-2">
+                            <span class="font-bold text-slate-800">${day}</span>
+                            <span class="text-xs font-bold text-slate-500 uppercase">Daily: ${formatDuration(group.total)}</span>
+                        </div>
+                        <div class="space-y-1">
+                            ${group.items.map(e => `
+                                <div class="flex justify-between text-xs text-slate-500">
+                                    <span>${formatDisplayTime(e.start)} - ${formatDisplayTime(e.end)}</span>
+                                    <span>${formatDuration(e.duration)}</span>
+                                </div>
+                            `).join('')}
+                        </div>
                     </div>
-                    <span class="bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-xs font-bold">${e.duration} min</span>
-                </div>
-            `).join('') || "No records found.";
+                `).join('') || '<p class="text-center text-slate-400 py-4 text-sm">No records found.</p>';
+            } catch (error) { list.innerHTML = "Error loading report."; }
         }
 
         function setLoading(isLoading) {
