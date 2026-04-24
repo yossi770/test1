@@ -39,9 +39,9 @@
         </div>
 
         <div class="flex bg-white p-1 rounded-xl shadow-sm border">
-            <button onclick="switchTab('attendance')" id="tab-attendance" class="flex-1 py-2 text-sm font-medium rounded-lg bg-slate-800 text-white">Attendance</button>
-            <button onclick="switchTab('manual')" id="tab-manual" class="flex-1 py-2 text-sm font-medium text-slate-500">Manual</button>
-            <button onclick="switchTab('reports')" id="tab-reports" class="flex-1 py-2 text-sm font-medium text-slate-500">Reports</button>
+            <button onclick="switchTab('attendance')" id="tab-attendance" class="flex-1 py-2 text-sm font-medium rounded-lg bg-slate-800 text-white transition-all">Attendance</button>
+            <button onclick="switchTab('manual')" id="tab-manual" class="flex-1 py-2 text-sm font-medium text-slate-500 transition-all">Manual</button>
+            <button onclick="switchTab('reports')" id="tab-reports" class="flex-1 py-2 text-sm font-medium text-slate-500 transition-all">Reports</button>
         </div>
 
         <div id="attendanceSection" class="space-y-6">
@@ -52,14 +52,14 @@
                 <div class="text-5xl font-mono font-bold text-slate-800" id="timerDisplay">00:00:00</div>
                 <div class="text-sm font-semibold text-slate-400 uppercase">Today: <span id="dailyTotalDisplay" class="text-slate-600">0m</span></div>
                 <div class="flex gap-4">
-                    <button id="startBtn" onclick="handleStart()" class="flex-1 bg-emerald-600 text-white p-5 rounded-2xl font-bold shadow-lg">START</button>
-                    <button id="endBtn" onclick="handleEnd()" disabled class="flex-1 bg-rose-600 text-white p-5 rounded-2xl font-bold shadow-lg disabled:opacity-30">STOP</button>
+                    <button id="startBtn" onclick="handleStart()" class="flex-1 bg-emerald-600 text-white p-5 rounded-2xl font-bold shadow-lg active:scale-95 transition-all">START</button>
+                    <button id="endBtn" onclick="handleEnd()" disabled class="flex-1 bg-rose-600 text-white p-5 rounded-2xl font-bold shadow-lg disabled:opacity-30 active:scale-95 transition-all">STOP</button>
                 </div>
             </div>
         </div>
 
         <div id="manualSection" class="hidden glass-card p-6 rounded-2xl space-y-4">
-            <h3 class="text-lg font-bold flex items-center gap-2"><i data-lucide="plus-circle"></i> Add Entry</h3>
+            <h3 class="text-lg font-bold flex items-center gap-2"><i data-lucide="plus-circle"></i> <span id="manualTitle">Add Entry</span></h3>
             <input type="date" id="manualDate" class="w-full p-3 border rounded-xl">
             <div class="grid grid-cols-2 gap-4">
                 <input type="time" id="manualStart" class="w-full p-3 border rounded-xl">
@@ -79,279 +79,266 @@
             <div id="reportEntriesList" class="space-y-3"></div>
         </div>
     </div>
-// --- Configuration ---
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxpIm8v5F-r_uZSTl9Q_QzLyeDzrCEvnKNGDESem1IkBzAaGWV9Z4EPz2dJY16L8gGQ/exec";
 
-// --- Global State ---
-let currentUser = null;
-let timerInterval = null;
-let startTime = null;
-let isProcessing = false;
-let editingRow = null; // משתנה למעקב אחרי שורה בעריכה
+    <script>
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxpIm8v5F-r_uZSTl9Q_QzLyeDzrCEvnKNGDESem1IkBzAaGWV9Z4EPz2dJY16L8gGQ/exec";
 
-// --- Core API Engine (JSONP) ---
-function apiRequestJSONP(action, payload) {
-    return new Promise((resolve, reject) => {
-        const callbackName = 'jsonp_' + Math.round(Math.random() * 1000000);
-        window[callbackName] = (data) => {
-            delete window[callbackName];
-            document.getElementById(callbackName)?.remove();
-            resolve(data);
-        };
-        const script = document.createElement('script');
-        script.id = callbackName;
-        script.src = `${GOOGLE_SCRIPT_URL}?callback=${callbackName}&action=${action}&payload=${encodeURIComponent(JSON.stringify(payload))}`;
-        script.onerror = () => {
-            document.getElementById(callbackName)?.remove();
-            reject(new Error('Connection failed'));
-        };
-        document.body.appendChild(script);
-    });
-}
+        let currentUser = null;
+        let timerInterval = null;
+        let startTime = null;
+        let isProcessing = false;
+        let editingRow = null; [cite: 235]
 
-// --- UI Helpers ---
-function showToast(msg, type = 'success') {
-    const container = document.getElementById('toastContainer');
-    const toast = document.createElement('div');
-    toast.className = `${type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'} text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 toast-animate`;
-    toast.innerHTML = `<i data-lucide="${type === 'success' ? 'check-circle' : 'alert-circle'}" class="w-5 h-5"></i><span>${msg}</span>`;
-    container.appendChild(toast);
-    lucide.createIcons();
-    setTimeout(() => { 
-        toast.style.opacity = '0'; 
-        setTimeout(() => toast.remove(), 500); 
-    }, 3000);
-}
-
-function formatMinsReadable(totalMins) {
-    const m = parseInt(totalMins) || 0;
-    const hrs = Math.floor(m / 60);
-    const mins = m % 60;
-    return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
-}
-
-function setLoading(isLoading) {
-    document.getElementById('startBtn').disabled = isLoading;
-    document.getElementById('endBtn').disabled = isLoading;
-    const startBtn = document.getElementById('startBtn');
-    if (isLoading) startBtn.classList.add('opacity-50');
-    else startBtn.classList.remove('opacity-50');
-}
-
-// --- App Logic ---
-async function handleLogin() {
-    const id = document.getElementById('userIdInput').value;
-    const btn = document.getElementById('loginBtn');
-    if(!id) return showToast("Enter ID", "error");
-
-    btn.disabled = true; btn.innerHTML = "Checking...";
-
-    try {
-        const user = await apiRequestJSONP('getUser', { userId: id });
-        if(user && user.userName) {
-            currentUser = user;
-            document.getElementById('loginSection').classList.add('hidden');
-            document.getElementById('dashboardSection').classList.remove('hidden');
-            document.getElementById('userNameDisplay').innerText = user.userName;
-            document.getElementById('currentDate').innerText = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-            document.getElementById('dailyTotalDisplay').innerText = formatMinsReadable(user.dailyTotal);
-            loadReport();
-        } else {
-            showToast("User ID not found", "error");
-            btn.disabled = false; btn.innerHTML = '<i data-lucide="log-in"></i> Login';
-        }
-    } catch (e) {
-        showToast("Connection Error", "error");
-        btn.disabled = false; btn.innerHTML = '<i data-lucide="log-in"></i> Login';
-    }
-    lucide.createIcons();
-}
-
-async function handleStart() {
-    if (isProcessing) return;
-    isProcessing = true; setLoading(true);
-    try {
-        const res = await apiRequestJSONP('startSession', { userId: currentUser.userId });
-        if(res && res.success) {
-            startTime = new Date();
-            timerInterval = setInterval(updateTimerDisplay, 1000);
-            updateUI(true);
-            showToast("Session Started");
-        } else showToast(res.message || "Failed to start", "error");
-    } catch (e) { showToast("Request failed", "error"); }
-    finally { isProcessing = false; setLoading(false); }
-}
-
-async function handleEnd() {
-    if (isProcessing) return;
-    isProcessing = true; setLoading(true);
-    try {
-        const res = await apiRequestJSONP('endSession', { userId: currentUser.userId });
-        if(res && res.success) {
-            clearInterval(timerInterval);
-            document.getElementById('timerDisplay').innerText = "00:00:00";
-            updateUI(false);
-            showToast("Session Ended: " + res.duration + "m");
-            loadReport();
-        } else showToast(res.message || "Failed to stop", "error");
-    } catch (e) { showToast("Request failed", "error"); }
-    finally { isProcessing = false; setLoading(false); }
-}
-
-function updateTimerDisplay() {
-    const now = new Date();
-    const diff = now - startTime;
-    const h = Math.floor(diff / 3600000).toString().padStart(2, '0');
-    const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
-    const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
-    document.getElementById('timerDisplay').innerText = `${h}:${m}:${s}`;
-}
-
-function updateUI(isActive) {
-    const startBtn = document.getElementById('startBtn');
-    const endBtn = document.getElementById('endBtn');
-    const status = document.getElementById('statusIndicator');
-    if(isActive) {
-        startBtn.disabled = true; endBtn.disabled = false;
-        status.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Active Now';
-        status.className = "inline-flex items-center gap-2 px-4 py-1 rounded-full text-sm font-medium bg-emerald-50 text-emerald-600";
-    } else {
-        startBtn.disabled = false; endBtn.disabled = true;
-        status.innerHTML = '<span class="w-2 h-2 rounded-full bg-slate-400"></span> Offline';
-        status.className = "inline-flex items-center gap-2 px-4 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-600";
-    }
-}
-
-function switchTab(tab) {
-    ['attendance', 'manual', 'reports'].forEach(t => {
-        document.getElementById(t + 'Section').classList.add('hidden');
-        document.getElementById('tab-' + t).className = "flex-1 py-2 text-sm font-medium text-slate-500 transition-all";
-    });
-    document.getElementById(tab + 'Section').classList.remove('hidden');
-    document.getElementById('tab-' + tab).className = "flex-1 py-2 text-sm font-medium rounded-lg bg-slate-800 text-white transition-all";
-    
-    if(tab === 'manual') resetManualForm();
-    if(tab === 'reports') loadReport();
-}
-
-// --- Manual Entry & Edit Logic ---
-
-function resetManualForm() {
-    editingRow = null;
-    document.getElementById('manualStart').value = "";
-    document.getElementById('manualEnd').value = "";
-    document.getElementById('manualDate').valueAsDate = new Date();
-    document.getElementById('submitManualBtn').innerHTML = '<i data-lucide="check-circle"></i> Save Entry';
-    lucide.createIcons();
-}
-
-function openEdit(entry) {
-    editingRow = { monthKey: entry.monthKey, rowIndex: entry.rowIndex };
-    switchTab('manual');
-    document.getElementById('manualDate').value = entry.date;
-    document.getElementById('manualStart').value = entry.start;
-    document.getElementById('manualEnd').value = entry.end;
-    document.getElementById('submitManualBtn').innerHTML = '<i data-lucide="save"></i> Update Entry';
-    lucide.createIcons();
-}
-
-async function submitManualEntry() {
-    const data = { 
-        userId: currentUser.userId, 
-        date: document.getElementById('manualDate').value,
-        startTime: document.getElementById('manualStart').value,
-        endTime: document.getElementById('manualEnd').value
-    };
-    if(!data.date || !data.startTime || !data.endTime) return showToast("Fill all fields", "error");
-    
-    const btn = document.getElementById('submitManualBtn');
-    btn.disabled = true; btn.innerText = "Saving...";
-
-    try {
-        let res;
-        if (editingRow) {
-            res = await apiRequestJSONP('editEntry', { ...data, ...editingRow });
-        } else {
-            res = await apiRequestJSONP('manualEntry', data);
+        // מנוע JSONP לתקשורת עם GitHub Pages
+        function apiRequestJSONP(action, payload) {
+            return new Promise((resolve, reject) => {
+                const callbackName = 'jsonp_' + Math.round(Math.random() * 1000000);
+                window[callbackName] = (data) => {
+                    delete window[callbackName];
+                    document.getElementById(callbackName)?.remove();
+                    resolve(data);
+                };
+                const script = document.createElement('script');
+                script.id = callbackName;
+                script.src = `${GOOGLE_SCRIPT_URL}?callback=${callbackName}&action=${action}&payload=${encodeURIComponent(JSON.stringify(payload))}`;
+                script.onerror = () => {
+                    document.getElementById(callbackName)?.remove();
+                    reject(new Error('Connection failed'));
+                };
+                document.body.appendChild(script);
+            }); [cite: 236]
         }
 
-        if(res && res.success) {
-            showToast(editingRow ? "Updated!" : "Saved!");
-            resetManualForm();
-            loadReport();
-            if(editingRow) switchTab('reports');
-        } else showToast(res?.message || "Error saving", "error");
-    } catch (e) {
-        showToast("Connection failed", "error");
-    } finally {
-        btn.disabled = false;
-        resetManualForm();
-    }
-}
-
-async function handleDelete(monthKey, rowIndex) {
-    if (!confirm("Are you sure?")) return;
-    try {
-        const res = await apiRequestJSONP('deleteEntry', { monthKey, rowIndex });
-        if (res && res.success) { showToast("Entry Deleted"); loadReport(); }
-        else showToast(res?.message || "Delete failed", "error");
-    } catch (e) { showToast("Connection failed", "error"); }
-}
-
-async function loadReport() {
-    const picker = document.getElementById('monthPicker');
-    if(!picker.innerHTML) {
-        const now = new Date();
-        for(let i=0; i<4; i++) {
-            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-            const val = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}`;
-            picker.innerHTML += `<option value="${val}">${val}</option>`;
-        }
-    }
-
-    const list = document.getElementById('reportEntriesList');
-    list.innerHTML = '<p class="text-center text-slate-400 py-10 italic">Loading records...</p>';
-
-    try {
-        const data = await apiRequestJSONP('getUserReport', { userId: currentUser.userId, monthKey: picker.value });
-        document.getElementById('reportTotalHours').innerText = data.totalHours + " hrs";
-        
-        if (!data.entries || data.entries.length === 0) {
-            list.innerHTML = '<p class="text-center text-slate-400 py-10 italic">No records found.</p>';
-            return;
+        function showToast(msg, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `${type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'} text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 toast-animate`;
+            toast.innerHTML = `<i data-lucide="${type === 'success' ? 'check-circle' : 'alert-circle'}" class="w-5 h-5"></i><span>${msg}</span>`;
+            container.appendChild(toast);
+            lucide.createIcons();
+            setTimeout(() => { 
+                toast.style.opacity = '0'; 
+                setTimeout(() => toast.remove(), 500); 
+            }, 3000); [cite: 241]
         }
 
-list.innerHTML = data.entries.map(entry => {
-    // הפיכת האובייקט לטקסט בטוח כדי שלא ישבור את ה-HTML
-    const entryData = JSON.stringify(entry).replace(/'/g, "\\'");
-    
-    return `
-    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center mb-2">
-        <div>
-            <p class="font-bold text-slate-800">${entry.date}</p>
-            <p class="text-xs text-slate-500">${entry.start} - ${entry.end || 'Active'}</p>
-        </div>
-        <div class="flex items-center gap-2">
-            <span class="bg-slate-100 text-slate-700 px-2 py-1 rounded-full text-xs font-bold">
-                ${formatMinsReadable(entry.duration)}
-            </span>
-            <button onclick='openEdit(${entryData})' class="text-blue-500 hover:bg-blue-50 p-2 rounded-lg transition-colors">
-                <i data-lucide="edit-3" class="w-4 h-4"></i>
-            </button>
-            <button onclick="handleDelete('${entry.monthKey}', ${entry.rowIndex})" class="text-rose-500 hover:bg-rose-50 p-2 rounded-lg transition-colors">
-                <i data-lucide="trash-2" class="w-4 h-4"></i>
-            </button>
-        </div>
-    </div>
-    `;
-}).join('');
-    } catch (e) {
-        list.innerHTML = '<p class="text-center text-rose-500 py-10">Error loading report.</p>';
-    }
-    lucide.createIcons();
-}
+        function formatMinsReadable(totalMins) {
+            const m = parseInt(totalMins) || 0;
+            const hrs = Math.floor(m / 60);
+            const mins = m % 60;
+            return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`; [cite: 243]
+        }
 
-function logout() { location.reload(); }
-lucide.createIcons();
-   </body>
+        function setLoading(isLoading) {
+            document.getElementById('startBtn').disabled = isLoading;
+            document.getElementById('endBtn').disabled = isLoading;
+            const startBtn = document.getElementById('startBtn');
+            if (isLoading) startBtn.classList.add('opacity-50');
+            else startBtn.classList.remove('opacity-50'); [cite: 245]
+        }
+
+        async function handleLogin() {
+            const id = document.getElementById('userIdInput').value;
+            const btn = document.getElementById('loginBtn');
+            if(!id) return showToast("Enter ID", "error");
+
+            btn.disabled = true; btn.innerHTML = "Checking...";
+            try {
+                const user = await apiRequestJSONP('getUser', { userId: id });
+                if(user && user.userName) {
+                    currentUser = user;
+                    document.getElementById('loginSection').classList.add('hidden');
+                    document.getElementById('dashboardSection').classList.remove('hidden');
+                    document.getElementById('userNameDisplay').innerText = user.userName;
+                    document.getElementById('currentDate').innerText = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+                    document.getElementById('dailyTotalDisplay').innerText = formatMinsReadable(user.dailyTotal);
+                    loadReport();
+                } else {
+                    showToast("User ID not found", "error");
+                    btn.disabled = false; btn.innerHTML = '<i data-lucide="log-in"></i> Login';
+                }
+            } catch (e) {
+                showToast("Connection Error", "error");
+                btn.disabled = false; btn.innerHTML = '<i data-lucide="log-in"></i> Login';
+            }
+            lucide.createIcons(); [cite: 253]
+        }
+
+        async function handleStart() {
+            if (isProcessing) return;
+            isProcessing = true; setLoading(true);
+            try {
+                const res = await apiRequestJSONP('startSession', { userId: currentUser.userId });
+                if(res && res.success) {
+                    startTime = new Date();
+                    timerInterval = setInterval(updateTimerDisplay, 1000);
+                    updateUI(true);
+                    showToast("Session Started");
+                } else showToast(res.message || "Failed to start", "error");
+            } catch (e) { showToast("Request failed", "error"); }
+            finally { isProcessing = false; setLoading(false); } [cite: 258]
+        }
+
+        async function handleEnd() {
+            if (isProcessing) return;
+            isProcessing = true; setLoading(true);
+            try {
+                const res = await apiRequestJSONP('endSession', { userId: currentUser.userId });
+                if(res && res.success) {
+                    clearInterval(timerInterval);
+                    document.getElementById('timerDisplay').innerText = "00:00:00";
+                    updateUI(false);
+                    showToast("Session Ended: " + res.duration + "m");
+                    loadReport();
+                } else showToast(res.message || "Failed to stop", "error");
+            } catch (e) { showToast("Request failed", "error"); }
+            finally { isProcessing = false; setLoading(false); } [cite: 263]
+        }
+
+        function updateTimerDisplay() {
+            const now = new Date();
+            const diff = now - startTime;
+            const h = Math.floor(diff / 3600000).toString().padStart(2, '0');
+            const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
+            const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
+            document.getElementById('timerDisplay').innerText = `${h}:${m}:${s}`; [cite: 266]
+        }
+
+        function updateUI(isActive) {
+            const startBtn = document.getElementById('startBtn');
+            const endBtn = document.getElementById('endBtn');
+            const status = document.getElementById('statusIndicator');
+            if(isActive) {
+                startBtn.disabled = true; endBtn.disabled = false;
+                status.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Active Now';
+                status.className = "inline-flex items-center gap-2 px-4 py-1 rounded-full text-sm font-medium bg-emerald-50 text-emerald-600";
+            } else {
+                startBtn.disabled = false; endBtn.disabled = true;
+                status.innerHTML = '<span class="w-2 h-2 rounded-full bg-slate-400"></span> Offline';
+                status.className = "inline-flex items-center gap-2 px-4 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-600";
+            } [cite: 272]
+        }
+
+        function switchTab(tab) {
+            ['attendance', 'manual', 'reports'].forEach(t => {
+                document.getElementById(t + 'Section').classList.add('hidden');
+                document.getElementById('tab-' + t).className = "flex-1 py-2 text-sm font-medium text-slate-500 transition-all";
+            });
+            document.getElementById(tab + 'Section').classList.remove('hidden');
+            document.getElementById('tab-' + tab).className = "flex-1 py-2 text-sm font-medium rounded-lg bg-slate-800 text-white transition-all";
+            if(tab === 'manual' && !editingRow) resetManualForm();
+            if(tab === 'reports') loadReport(); [cite: 274]
+        }
+
+        function resetManualForm() {
+            editingRow = null;
+            document.getElementById('manualTitle').innerText = "Add Entry";
+            document.getElementById('manualStart').value = "";
+            document.getElementById('manualEnd').value = "";
+            document.getElementById('manualDate').valueAsDate = new Date();
+            document.getElementById('submitManualBtn').innerHTML = 'Save Entry';
+            lucide.createIcons(); [cite: 276]
+        }
+
+        function openEdit(entry) {
+            editingRow = { monthKey: entry.monthKey, rowIndex: entry.rowIndex }; [cite: 277]
+            switchTab('manual');
+            document.getElementById('manualTitle').innerText = "Edit Entry";
+            document.getElementById('manualDate').value = entry.date;
+            document.getElementById('manualStart').value = entry.start;
+            document.getElementById('manualEnd').value = entry.end;
+            document.getElementById('submitManualBtn').innerHTML = 'Update Entry';
+            lucide.createIcons(); [cite: 278]
+        }
+
+        async function submitManualEntry() {
+            const data = { 
+                userId: currentUser.userId, 
+                date: document.getElementById('manualDate').value,
+                startTime: document.getElementById('manualStart').value,
+                endTime: document.getElementById('manualEnd').value
+            };
+            if(!data.date || !data.startTime || !data.endTime) return showToast("Fill all fields", "error");
+            
+            const btn = document.getElementById('submitManualBtn');
+            btn.disabled = true; btn.innerText = "Saving...";
+            try {
+                let res;
+                if (editingRow) {
+                    res = await apiRequestJSONP('editEntry', { ...data, ...editingRow }); [cite: 281]
+                } else {
+                    res = await apiRequestJSONP('manualEntry', data); [cite: 283]
+                }
+
+                if(res && res.success) {
+                    showToast(editingRow ? "Updated!" : "Saved!");
+                    resetManualForm();
+                    loadReport();
+                    switchTab('reports');
+                } else showToast(res?.message || "Error saving", "error");
+            } catch (e) { showToast("Connection failed", "error"); }
+            finally { btn.disabled = false; } [cite: 287]
+        }
+
+        async function handleDelete(monthKey, rowIndex) {
+            if (!confirm("Are you sure?")) return;
+            try {
+                const res = await apiRequestJSONP('deleteEntry', { monthKey, rowIndex }); [cite: 289]
+                if (res && res.success) { showToast("Entry Deleted"); loadReport(); }
+                else showToast(res?.message || "Delete failed", "error");
+            } catch (e) { showToast("Connection failed", "error"); }
+        }
+
+        async function loadReport() {
+            const picker = document.getElementById('monthPicker');
+            if(!picker.innerHTML) {
+                const now = new Date();
+                for(let i=0; i<4; i++) {
+                    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                    const val = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}`;
+                    picker.innerHTML += `<option value="${val}">${val}</option>`;
+                } [cite: 293]
+            }
+
+            const list = document.getElementById('reportEntriesList');
+            list.innerHTML = '<p class="text-center text-slate-400 py-10 italic">Loading records...</p>';
+
+            try {
+                const data = await apiRequestJSONP('getUserReport', { userId: currentUser.userId, monthKey: picker.value });
+                document.getElementById('reportTotalHours').innerText = data.totalHours + " hrs";
+                
+                if (!data.entries || data.entries.length === 0) {
+                    list.innerHTML = '<p class="text-center text-slate-400 py-10 italic">No records found.</p>';
+                    return; [cite: 296]
+                }
+
+                list.innerHTML = data.entries.map(entry => {
+                    const entryData = JSON.stringify(entry).replace(/'/g, "\\'");
+                    return `
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center mb-2">
+                        <div>
+                            <p class="font-bold text-slate-800">${entry.date}</p>
+                            <p class="text-xs text-slate-500">${entry.start} - ${entry.end || 'Active'}</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="bg-slate-100 text-slate-700 px-2 py-1 rounded-full text-xs font-bold">
+                                ${formatMinsReadable(entry.duration)}
+                            </span>
+                            <button onclick='openEdit(${entryData})' class="text-blue-500 hover:bg-blue-50 p-2 rounded-lg transition-colors">
+                                <i data-lucide="edit-3" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="handleDelete('${entry.monthKey}', ${entry.rowIndex})" class="text-rose-500 hover:bg-rose-50 p-2 rounded-lg transition-colors">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>`; [cite: 299]
+                }).join('');
+            } catch (e) { list.innerHTML = '<p class="text-center text-rose-500 py-10">Error loading report.</p>'; }
+            lucide.createIcons(); [cite: 300]
+        }
+
+        function logout() { location.reload(); }
+        lucide.createIcons();
+    </script>
+</body>
 </html>
