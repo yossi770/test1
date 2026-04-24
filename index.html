@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="he" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kollel Tracker - Fast Load</title>
+    <title>Kollel Time Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
@@ -17,14 +17,14 @@
     <div id="loginSection" class="w-full max-w-md mt-10 p-8 glass-card rounded-2xl shadow-xl">
         <div class="text-center mb-8">
             <h1 class="text-3xl font-bold text-slate-800">Kollel Tracker</h1>
-            <p class="text-slate-500 mt-2">כניסה מהירה דרך GitHub</p>
+            <p class="text-slate-500 mt-2">Enter your User ID to begin</p>
         </div>
         <div class="space-y-4">
-            <input type="number" id="userIdInput" placeholder="מספר מזהה (למשל 101)"
+            <input type="number" id="userIdInput" placeholder="User ID (e.g. 101)"
                    class="w-full p-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-lg text-center">
             <button onclick="handleLogin()" id="loginBtn"
                     class="w-full bg-slate-800 text-white p-4 rounded-xl font-bold text-lg hover:bg-slate-700 transition-all flex justify-center items-center gap-2">
-                <i data-lucide="log-in"></i> כניסה
+                <i data-lucide="log-in"></i> Login
             </button>
         </div>
     </div>
@@ -32,84 +32,122 @@
     <div id="dashboardSection" class="w-full max-w-md space-y-6 hidden">
         <div class="flex justify-between items-center p-2">
             <div>
-                <h2 class="text-xl font-bold text-slate-800">שלום, <span id="userNameDisplay">---</span></h2>
+                <h2 class="text-xl font-bold text-slate-800">Shalom, <span id="userNameDisplay">---</span></h2>
                 <p id="currentDate" class="text-sm text-slate-500"></p>
             </div>
-            <button onclick="logout()" class="text-slate-400 hover:text-red-500">
+            <button onclick="logout()" class="text-slate-400 hover:text-red-500 transition-colors">
                 <i data-lucide="log-out"></i>
             </button>
         </div>
 
-        <div class="glass-card p-8 rounded-3xl shadow-lg text-center space-y-6">
-            <div id="statusIndicator" class="inline-flex items-center gap-2 px-4 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-600">
-                <span class="w-2 h-2 rounded-full bg-slate-400"></span> Offline
-            </div>
-            <div class="text-5xl font-mono font-bold text-slate-800 py-4" id="timerDisplay">00:00:00</div>
-            <div class="flex gap-4">
-                <button id="startBtn" onclick="handleStart(event)" class="flex-1 bg-emerald-600 text-white p-5 rounded-2xl font-bold shadow-lg hover:bg-emerald-700 active:scale-95 transition-all">START</button>
-                <button id="endBtn" onclick="handleEnd(event)" disabled class="flex-1 bg-rose-600 text-white p-5 rounded-2xl font-bold shadow-lg hover:bg-rose-700 active:scale-95 transition-all disabled:opacity-30">STOP</button>
+        <div class="flex bg-white p-1 rounded-xl shadow-sm border border-slate-200">
+            <button onclick="switchTab('attendance')" id="tab-attendance" class="flex-1 py-2 text-sm font-medium rounded-lg bg-slate-800 text-white transition-all">Attendance</button>
+            <button onclick="switchTab('manual')" id="tab-manual" class="flex-1 py-2 text-sm font-medium text-slate-500 hover:text-slate-800 transition-all">Manual</button>
+            <button onclick="switchTab('reports')" id="tab-reports" class="flex-1 py-2 text-sm font-medium text-slate-500 hover:text-slate-800 transition-all">Reports</button>
+        </div>
+
+        <div id="attendanceSection" class="space-y-6">
+            <div class="glass-card p-8 rounded-3xl shadow-lg text-center space-y-6 border border-slate-100">
+                <div id="statusIndicator" class="inline-flex items-center gap-2 px-4 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-600">
+                    <span class="w-2 h-2 rounded-full bg-slate-400"></span> Offline
+                </div>
+                <div class="text-5xl font-mono font-bold text-slate-800 py-4" id="timerDisplay">00:00:00</div>
+                <div class="flex gap-4">
+                    <button id="startBtn" onclick="handleStart()" class="flex-1 bg-emerald-600 text-white p-5 rounded-2xl font-bold shadow-lg hover:bg-emerald-700 active:scale-95 transition-all">START</button>
+                    <button id="endBtn" onclick="handleEnd()" disabled class="flex-1 bg-rose-600 text-white p-5 rounded-2xl font-bold shadow-lg hover:bg-rose-700 active:scale-95 transition-all disabled:opacity-30">STOP</button>
+                </div>
             </div>
         </div>
 
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center">
-            <span class="text-slate-600 font-medium">סה"כ שעות החודש:</span>
-            <span id="monthlyHours" class="text-xl font-bold text-slate-800">0.00</span>
+        <div id="manualSection" class="hidden space-y-4">
+            <div class="glass-card p-6 rounded-2xl shadow-md space-y-4 border border-slate-100">
+                <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <i data-lucide="plus-circle" class="w-5 h-5"></i> Add Manual Entry
+                </h3>
+                <div class="space-y-4 text-left">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Date</label>
+                        <input type="date" id="manualDate" class="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Start Time</label>
+                            <input type="time" id="manualStart" class="w-full p-3 border border-slate-200 rounded-xl focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">End Time</label>
+                            <input type="time" id="manualEnd" class="w-full p-3 border border-slate-200 rounded-xl focus:outline-none">
+                        </div>
+                    </div>
+                    <button onclick="submitManualEntry()" id="submitManualBtn" class="w-full bg-slate-800 text-white p-4 rounded-xl font-bold hover:bg-slate-700 active:scale-95 transition-all flex justify-center items-center gap-2">
+                        <i data-lucide="check-circle"></i> Save Entry
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="reportsSection" class="hidden space-y-4">
+            <div class="bg-slate-800 text-white p-6 rounded-2xl shadow-lg flex justify-between items-center">
+                <div class="text-left">
+                    <p class="text-slate-400 text-xs font-bold uppercase">Monthly Total</p>
+                    <h3 class="text-3xl font-bold"><span id="reportTotalHours">0.00</span> <span class="text-lg font-normal opacity-60">hrs</span></h3>
+                </div>
+                <select id="monthPicker" onchange="loadReport()" class="bg-slate-700 text-white border-none rounded-lg p-2 text-sm"></select>
+            </div>
+            <div id="reportEntriesList" class="space-y-3 text-left"></div>
         </div>
     </div>
 
     <script>
-        // --- הגדרות תקשורת JSONP ---
+        // --- CONFIGURATION ---
         const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxpIm8v5F-r_uZSTl9Q_QzLyeDzrCEvnKNGDESem1IkBzAaGWV9Z4EPz2dJY16L8gGQ/exec";
 
+        // JSONP Wrapper for GitHub Pages
         function apiRequestJSONP(action, payload) {
             return new Promise((resolve, reject) => {
                 const callbackName = 'jsonp_' + Math.round(Math.random() * 1000000);
-                
                 window[callbackName] = function(data) {
                     delete window[callbackName];
                     const scriptTag = document.getElementById(callbackName);
                     if (scriptTag) document.body.removeChild(scriptTag);
                     resolve(data);
                 };
-
                 const url = `${GOOGLE_SCRIPT_URL}?callback=${callbackName}&action=${action}&payload=${encodeURIComponent(JSON.stringify(payload))}`;
                 const script = document.createElement('script');
                 script.id = callbackName;
                 script.src = url;
-                script.onerror = () => reject(new Error('שגיאת תקשורת (JSONP)'));
+                script.onerror = () => reject(new Error('Connection Error'));
                 document.body.appendChild(script);
             });
         }
 
-        // --- לוגיקה של האפליקציה ---
         lucide.createIcons();
         let currentUser = null;
         let timerInterval = null;
         let startTime = null;
-        let isProcessing = false;
 
         async function handleLogin() {
             const userId = document.getElementById('userIdInput').value;
-            if(!userId) return alert("נא להזין מספר מזהה");
-            
             const btn = document.getElementById('loginBtn');
+            if(!userId) return alert("Please enter User ID");
+            
             btn.disabled = true;
-            btn.innerHTML = "מתחבר...";
+            btn.innerHTML = "Checking...";
 
             try {
-                const res = await apiRequestJSONP('getUser', { userId: userId });
-                if(res && res.userName) {
-                    currentUser = res;
+                const user = await apiRequestJSONP('getUser', { userId: userId });
+                if(user && user.userName) {
+                    currentUser = user;
                     showDashboard();
                 } else {
-                    alert("משתמש לא נמצא במערכת");
+                    alert("ID not found!");
                     btn.disabled = false;
-                    btn.innerHTML = "כניסה";
+                    btn.innerHTML = "Login";
                 }
             } catch (e) {
-                alert("לא ניתן להתחבר לשרת גוגל. וודא שהקישור תקין.");
+                alert("Connection failed. Check your Script URL.");
                 btn.disabled = false;
-                btn.innerHTML = "כניסה";
+                btn.innerHTML = "Login";
             }
         }
 
@@ -117,33 +155,52 @@
             document.getElementById('loginSection').classList.add('hidden');
             document.getElementById('dashboardSection').classList.remove('hidden');
             document.getElementById('userNameDisplay').innerText = currentUser.userName;
-            document.getElementById('currentDate').innerText = new Date().toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' });
-            if (currentUser.monthlyHours) document.getElementById('monthlyHours').innerText = currentUser.monthlyHours;
+            document.getElementById('currentDate').innerText = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+            loadReport();
         }
 
-        async function handleStart(event) {
-            if(event) event.preventDefault();
-            updateUI(true);
-            startTimer(new Date());
-            await apiRequestJSONP('startSession', { userId: currentUser.userId });
+        // Tab Switching & Button Highlighting Logic
+        function switchTab(tabName) {
+            const sections = ['attendance', 'manual', 'reports'];
+            sections.forEach(s => {
+                document.getElementById(s + 'Section').classList.add('hidden');
+                const btn = document.getElementById('tab-' + s);
+                // Reset styles to default gray
+                btn.classList.remove('bg-slate-800', 'text-white');
+                btn.classList.add('text-slate-500');
+            });
+
+            // Show selected section
+            document.getElementById(tabName + 'Section').classList.remove('hidden');
+            
+            // Highlight active button
+            const activeBtn = document.getElementById('tab-' + tabName);
+            activeBtn.classList.add('bg-slate-800', 'text-white');
+            activeBtn.classList.remove('text-slate-500');
+
+            if (tabName === 'reports') loadReport();
         }
 
-        async function handleEnd(event) {
-            if(event) event.preventDefault();
-            if(isProcessing) return;
-            isProcessing = true;
+        async function handleStart() {
+            setLoading(true);
+            const res = await apiRequestJSONP('startSession', { userId: currentUser.userId });
+            setLoading(false);
+            if(res.success) {
+                startTimer(new Date());
+                updateUI(true);
+            }
+        }
 
-            clearInterval(timerInterval);
-            document.getElementById('timerDisplay').innerText = "00:00:00";
-            updateUI(false);
-
-            try {
-                const res = await apiRequestJSONP('endSession', { userId: currentUser.userId });
-                if(res && res.duration) alert("הסשן נסגר: " + res.duration + " דקות.");
-            } catch (e) {
-                console.error("סנכרון נכשל");
-            } finally {
-                isProcessing = false;
+        async function handleEnd() {
+            setLoading(true);
+            const res = await apiRequestJSONP('endSession', { userId: currentUser.userId });
+            setLoading(false);
+            if(res.success) {
+                clearInterval(timerInterval);
+                updateUI(false);
+                document.getElementById('timerDisplay').innerText = "00:00:00";
+                alert("Session saved! Duration: " + res.duration + " minutes.");
+                loadReport();
             }
         }
 
@@ -160,21 +217,70 @@
         }
 
         function updateUI(isActive) {
-            const startBtn = document.getElementById('startBtn');
-            const endBtn = document.getElementById('endBtn');
+            document.getElementById('startBtn').disabled = isActive;
+            document.getElementById('endBtn').disabled = !isActive;
             const status = document.getElementById('statusIndicator');
-            
             if(isActive) {
-                startBtn.disabled = true;
-                endBtn.disabled = false;
                 status.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Active Now';
                 status.className = "inline-flex items-center gap-2 px-4 py-1 rounded-full text-sm font-medium bg-emerald-50 text-emerald-600";
             } else {
-                startBtn.disabled = false;
-                endBtn.disabled = true;
                 status.innerHTML = '<span class="w-2 h-2 rounded-full bg-slate-400"></span> Offline';
                 status.className = "inline-flex items-center gap-2 px-4 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-600";
             }
+        }
+
+        async function submitManualEntry() {
+            const params = {
+                userId: currentUser.userId,
+                date: document.getElementById('manualDate').value,
+                startTime: document.getElementById('manualStart').value,
+                endTime: document.getElementById('manualEnd').value
+            };
+            if (!params.date || !params.startTime || !params.endTime) return alert("Please fill all fields");
+
+            const btn = document.getElementById('submitManualBtn');
+            btn.disabled = true; btn.innerHTML = "Saving...";
+            
+            const res = await apiRequestJSONP('manualEntry', params);
+            btn.disabled = false; btn.innerHTML = '<i data-lucide="check-circle"></i> Save Entry';
+            lucide.createIcons();
+
+            if (res.success) {
+                alert("Entry saved successfully!");
+                loadReport();
+            }
+        }
+
+        async function loadReport() {
+            const monthPicker = document.getElementById('monthPicker');
+            if (!monthPicker.innerHTML) {
+                const now = new Date();
+                for (let i = 0; i < 4; i++) {
+                    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                    const val = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}`;
+                    monthPicker.innerHTML += `<option value="${val}">${val}</option>`;
+                }
+            }
+
+            const list = document.getElementById('reportEntriesList');
+            list.innerHTML = "Loading...";
+            const data = await apiRequestJSONP('getUserReport', { userId: currentUser.userId, monthKey: monthPicker.value });
+            
+            document.getElementById('reportTotalHours').innerText = data.totalHours;
+            list.innerHTML = data.entries.map(e => `
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center">
+                    <div>
+                        <p class="font-bold text-slate-800">${e.date}</p>
+                        <p class="text-xs text-slate-500">${e.start} - ${e.end || 'Active'}</p>
+                    </div>
+                    <span class="bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-xs font-bold">${e.duration} min</span>
+                </div>
+            `).join('') || "No records found.";
+        }
+
+        function setLoading(isLoading) {
+            document.getElementById('startBtn').disabled = isLoading;
+            document.getElementById('endBtn').disabled = isLoading;
         }
 
         function logout() { location.reload(); }
