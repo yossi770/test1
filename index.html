@@ -109,24 +109,28 @@
     // הערה: לביצוע Login ודוחות (קבלת נתונים), מומלץ להשתמש ב-JSONP או להגדיר CORS ב-GAS.
     // לגרסת ה-GitHub, נשתמש ב-fetch רגיל:
 async function apiRequest(action, payload = {}) {
+    // ה-URL המדויק שלך (בלי ה-callback בקצה)
     const url = "https://script.google.com/macros/s/AKfycbxpIm8v5F-r_uZSTl9Q_QzLyeDzrCEvnKNGDESem1IkBzAaGWV9Z4EPz2dJY16L8gGQ/exec";
     
     try {
         const response = await fetch(url, {
-            method: 'POST',
-            redirect: 'follow', // חשוב מאוד עבור גוגל סקריפט
+            method: 'POST', // גוגל דורש POST לבקשות כאלו
+            mode: 'cors',   // אנחנו רוצים לקרוא את התשובה
+            redirect: 'follow', // קריטי! גוגל תמיד עושה Redirect
             body: JSON.stringify({ action, payload }),
             headers: {
-                'Content-Type': 'text/plain;charset=utf-8', 
-                // משתמשים ב-text/plain כדי למנוע בקשות Preflight של CORS
+                // משתמשים ב-text/plain כדי לעקוף בדיקת CORS מקדימה (Preflight)
+                'Content-Type': 'text/plain;charset=utf-8'
             }
         });
         
         if (!response.ok) throw new Error('Network response was not ok');
-        return await response.json();
+        
+        const data = await response.json();
+        return data;
         
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Error detail:', error);
         throw error;
     }
 }
