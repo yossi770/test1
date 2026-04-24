@@ -240,16 +240,45 @@
             lucide.createIcons(); 
         }
 
-        function openEdit(entry) {
-            editingRow = { monthKey: entry.monthKey, rowIndex: entry.rowIndex }; 
-            switchTab('manual');
-            document.getElementById('manualTitle').innerText = "Edit Entry";
-            document.getElementById('manualDate').value = entry.date;
-            document.getElementById('manualStart').value = entry.start;
-            document.getElementById('manualEnd').value = entry.end;
-            document.getElementById('submitManualBtn').innerHTML = 'Update Entry';
-            lucide.createIcons(); 
+function openEdit(entry) {
+    // 1. שמירת המיקום לעדכון
+    editingRow = { 
+        monthKey: entry.monthKey || document.getElementById('monthPicker').value, 
+        rowIndex: entry.rowIndex 
+    };
+
+    // 2. מעבר לטאב הידני
+    switchTab('manual');
+
+    // 3. ניקוי ועיבוד הנתונים (מניעת שגיאות פורמט)
+    
+    // חילוץ תאריך: לוקח רק את ה-10 תווים הראשונים (YYYY-MM-DD)
+    const rawDate = entry.date.includes('T') ? entry.date.split('T')[0] : entry.date;
+    
+    // חילוץ שעות: בודק אם זה פורמט ISO מלא או שעה נקייה
+    const formatTimeForInput = (timeStr) => {
+        if (!timeStr) return "";
+        if (timeStr.includes('T')) {
+            // לוקח את החלק של השעה (HH:mm)
+            return timeStr.split('T')[1].substring(0, 5);
         }
+        return timeStr;
+    };
+
+    const cleanStart = formatTimeForInput(entry.start);
+    const cleanEnd = formatTimeForInput(entry.end);
+
+    // 4. השמת הערכים בשדות
+    document.getElementById('manualDate').value = rawDate;
+    document.getElementById('manualStart').value = cleanStart;
+    document.getElementById('manualEnd').value = cleanEnd;
+
+    // 5. עדכון נראות הכפתור והכותרת
+    document.getElementById('manualTitle').innerText = "Edit Entry";
+    document.getElementById('submitManualBtn').innerHTML = '<i data-lucide="save"></i> Update Entry';
+    
+    lucide.createIcons();
+}
 
         async function submitManualEntry() {
             const data = { 
@@ -303,6 +332,24 @@ async function loadReport() {
     const list = document.getElementById('reportEntriesList');
     list.innerHTML = '<p class="text-center text-slate-400 py-10 italic">Loading records...</p>';
 
+    // פונקציות עזר פנימיות לעיצוב
+    const formatTime = (timeStr) => {
+        if (!timeStr) return 'Active';
+        try {
+            const d = new Date(timeStr);
+            // אם התאריך לא תקין (גוגל לפעמים שולח פורמט שונה), ננסה לחלץ רק את השעה
+            if (isNaN(d.getTime())) return timeStr.split('T')[1]?.substring(0,5) || timeStr;
+            return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+        } catch(e) { return timeStr; }
+    };
+
+    const formatDateOnly = (dateStr) => {
+        try {
+            const d = new Date(dateStr);
+            return isNaN(d.getTime()) ? dateStr.split('T')[0] : d.toLocaleDateString('he-IL');
+        } catch(e) { return dateStr; }
+    };
+
     try {
         const data = await apiRequestJSONP('getUserReport', { userId: currentUser.userId, monthKey: picker.value });
         document.getElementById('reportTotalHours').innerText = data.totalHours + " hrs";
@@ -312,37 +359,34 @@ async function loadReport() {
             return;
         }
 
-        // --- לוגיקת איחוד לפי ימים ---
         const groupedEntries = {};
         data.entries.forEach(entry => {
-            if (!groupedEntries[entry.date]) {
-                groupedEntries[entry.date] = {
-                    date: entry.date,
-                    totalDuration: 0,
-                    subEntries: []
-                };
+            const dateKey = formatDateOnly(entry.date);
+            if (!groupedEntries[dateKey]) {
+                groupedEntries[dateKey] = { date: dateKey, totalDuration: 0, subEntries: [] };
             }
-            groupedEntries[entry.date].totalDuration += parseInt(entry.duration || 0);
-            groupedEntries[entry.date].subEntries.push(entry);
+            groupedEntries[dateKey].totalDuration += parseInt(entry.duration || 0);
+            groupedEntries[dateKey].subEntries.push(entry);
         });
 
-        // יצירת ה-HTML המאוחד
         list.innerHTML = Object.values(groupedEntries).map(day => `
             <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden mb-3">
                 <div class="bg-slate-50 px-4 py-2 border-b border-slate-100 flex justify-between items-center">
                     <span class="font-bold text-slate-700">${day.date}</span>
                     <span class="text-xs font-black bg-slate-200 text-slate-600 px-2 py-1 rounded-md">
-                        Daily: ${formatMinsReadable(day.totalDuration)}
+                        Total: ${formatMinsReadable(day.totalDuration)}
                     </span>
                 </div>
                 
                 <div class="p-2 space-y-1">
                     ${day.subEntries.map(entry => {
-                        const entryData = JSON.stringify(entry).replace(/'/g, "\\'");
+const entryData = JSON.stringify(entry).replace(/"/g, '&quot;').replace(/'/g, "\\'");                        const displayStart = formatTime(entry.start);
+                        const displayEnd = formatTime(entry.end);
+                        
                         return `
-                        <div class="flex justify-between items-center p-2 hover:bg-slate-50 rounded-lg transition-colors group">
+                        <div class="flex justify-between items-center p-2 hover:bg-slate-50 rounded-lg group">
                             <div class="text-sm text-slate-600">
-                                <span class="font-medium">${entry.start} - ${entry.end || 'Active'}</span>
+                                <span class="font-medium uppercase">${displayStart} - ${displayEnd}</span>
                                 <span class="text-xs text-slate-400 ml-2">(${formatMinsReadable(entry.duration)})</span>
                             </div>
                             <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -360,7 +404,6 @@ async function loadReport() {
         `).join('');
         
     } catch (e) { 
-        console.error(e);
         list.innerHTML = '<p class="text-center text-rose-500 py-10">Error loading report.</p>'; 
     }
     lucide.createIcons();
